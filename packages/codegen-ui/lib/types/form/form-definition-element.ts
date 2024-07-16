@@ -14,7 +14,7 @@
   limitations under the License.
  */
 
-import { DataFieldDataType } from '../data';
+import { DataFieldDataType, GenericDataRelationshipType } from '../data';
 import { FieldValidationConfiguration } from './form-validation';
 import { StudioFormValueMappings } from './input-config';
 
@@ -22,6 +22,7 @@ type FormDefinitionInputElementCommon = {
   dataType?: DataFieldDataType;
   validations?: (FieldValidationConfiguration & { immutable?: true })[];
   isArray?: boolean;
+  relationship?: GenericDataRelationshipType;
 };
 
 export type FormDefinitionTextFieldElement = {
@@ -32,7 +33,6 @@ export type FormDefinitionTextFieldElement = {
     isRequired?: boolean;
     isReadOnly?: boolean;
     placeholder?: string;
-    defaultValue?: string;
     type?: string;
   };
   studioFormComponentType:
@@ -45,6 +45,19 @@ export type FormDefinitionTextFieldElement = {
     | 'URLField'
     | 'EmailField'
     | 'PhoneNumberField';
+};
+
+export type FormDefinitionAutocompleteElement = {
+  componentType: 'Autocomplete';
+  props: {
+    label: string;
+    descriptiveText?: string;
+    isRequired?: boolean;
+    isReadOnly?: boolean;
+    placeholder?: string;
+    defaultValue?: string;
+  };
+  valueMappings: StudioFormValueMappings;
 };
 
 export type FormDefinitionSwitchFieldElement = {
@@ -115,6 +128,23 @@ export type FormDefinitionStepperFieldElement = {
   };
 };
 
+export type FormDefinitionStorageFieldElement = {
+  componentType: 'StorageField';
+  props: {
+    label: string;
+    descriptiveText?: string;
+    isRequired?: boolean;
+    isReadOnly?: boolean;
+    defaultValue?: string;
+    accessLevel: StorageAccessLevel;
+    acceptedFileTypes: string[];
+    showThumbnails?: boolean;
+    isResumable?: boolean;
+    maxFileCount?: number;
+    maxSize?: number;
+  };
+};
+
 export type FormDefinitionToggleButtonElement = {
   componentType: 'ToggleButton';
   props: {
@@ -178,6 +208,8 @@ export type FormDefinitionInputElement = (
   | FormDefinitionCheckboxFieldElement
   | FormDefinitionRadioGroupFieldElement
   | FormDefinitionPasswordFieldElement
+  | FormDefinitionAutocompleteElement
+  | FormDefinitionStorageFieldElement
 ) &
   FormDefinitionInputElementCommon;
 
@@ -205,3 +237,5 @@ export type FormDefinitionElement =
   | FormDefinitionInputElement
   | FormDefinitionSectionalElement
   | FormDefinitionButtonElement;
+
+export type StorageAccessLevel = 'public' | 'protected' | 'private';

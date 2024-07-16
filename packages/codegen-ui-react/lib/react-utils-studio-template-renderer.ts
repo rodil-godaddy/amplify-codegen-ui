@@ -14,18 +14,40 @@
   limitations under the License.
  */
 import { EOL } from 'os';
-import ts, { EmitHint } from 'typescript';
+import { EmitHint } from 'typescript';
 import { StudioTemplateRenderer } from '@aws-amplify/codegen-ui';
 import { ReactRenderConfig, scriptKindToFileExtensionNonReact } from './react-render-config';
-import { ImportCollection } from './imports';
+import { ImportCollection, ImportSource, ImportValue } from './imports';
 import { ReactOutputManager } from './react-output-manager';
-import { RequiredKeys } from './utils/type-utils';
 import { transpile, buildPrinter, defaultRenderConfig } from './react-studio-template-renderer-helper';
-import { generateValidationFunction } from './utils/forms/validation';
-import { getFetchByPathNodeFunction } from './utils/json-path-fetch';
-import { generateFormatUtil } from './utils/string-formatter';
+import {
+  constantsString,
+  amplifySymbolString,
+  useNavigateActionString,
+  useStateMutationActionString,
+  getOverridePropsString,
+  getOverridesFromVariantsString,
+  mergeVariantsAndOverridesString,
+  formatterString,
+  fetchByPathString,
+  processFileString,
+  validationString,
+  findChildOverridesString,
+  getErrorMessageString,
+  useAuthSignOutActionString,
+  useTypeCastFieldsString,
+  useDataStoreCreateActionString,
+  useDataStoreUpdateActionString,
+  useDataStoreDeleteActionString,
+  createDataStorePredicateString,
+  useDataStoreBindingString,
+  useAuthSignOutActionStringV6,
+  useAuthString,
+} from './utils-file-functions';
+import { getAmplifyJSVersionToRender } from './helpers/amplify-js-versioning';
+import { AMPLIFY_JS_V6 } from './utils/constants';
 
-export type UtilTemplateType = 'validation' | 'formatter' | 'fetchByPath';
+export type UtilTemplateType = 'validation' | 'formatter' | 'fetchByPath' | 'processFile';
 
 export class ReactUtilsStudioTemplateRenderer extends StudioTemplateRenderer<
   string,
@@ -38,7 +60,7 @@ export class ReactUtilsStudioTemplateRenderer extends StudioTemplateRenderer<
 > {
   protected importCollection = new ImportCollection();
 
-  protected renderConfig: RequiredKeys<ReactRenderConfig, keyof typeof defaultRenderConfig>;
+  protected renderConfig: ReactRenderConfig & typeof defaultRenderConfig;
 
   fileName: string;
 
@@ -60,39 +82,65 @@ export class ReactUtilsStudioTemplateRenderer extends StudioTemplateRenderer<
 
   renderComponentInternal() {
     const { printer, file } = buildPrinter(this.fileName, this.renderConfig);
-    const utilsStatements: (ts.VariableStatement | ts.TypeAliasDeclaration | ts.FunctionDeclaration)[] = [];
-    const skipReactImport = true;
+    const parsedUtils: string[] = [
+      constantsString,
+      amplifySymbolString,
+      useStateMutationActionString,
+      useNavigateActionString,
+      findChildOverridesString,
+      getOverridePropsString,
+      getOverridesFromVariantsString,
+      mergeVariantsAndOverridesString,
+      getErrorMessageString,
+      useTypeCastFieldsString,
+      useDataStoreCreateActionString,
+      useDataStoreUpdateActionString,
+      useDataStoreDeleteActionString,
+      createDataStorePredicateString,
+      useDataStoreBindingString,
+    ];
+
+    if (getAmplifyJSVersionToRender(this.renderConfig.dependencies) === AMPLIFY_JS_V6) {
+      this.importCollection.addImport(ImportSource.AMPLIFY_AUTH, ImportValue.SIGN_OUT);
+      this.importCollection.addImport(ImportSource.AMPLIFY_AUTH, ImportValue.FETCH_USER_ATTRIBUTES);
+      this.importCollection.addImport(ImportSource.AMPLIFY_DATASTORE_V6, ImportValue.DATASTORE);
+      this.importCollection.addImport(ImportSource.AMPLIFY_UTILS, ImportValue.HUB);
+      parsedUtils.push(useAuthSignOutActionStringV6);
+      parsedUtils.push(useAuthString);
+    } else {
+      this.importCollection.addMappedImport(ImportValue.HUB, ImportValue.DATASTORE, ImportValue.AUTH);
+      parsedUtils.push(useAuthSignOutActionString);
+    }
 
     const utilsSet = new Set(this.utils);
 
     if (utilsSet.has('validation')) {
-      utilsStatements.push(...generateValidationFunction());
+      parsedUtils.push(validationString);
     }
 
     if (utilsSet.has('formatter')) {
-      utilsStatements.push(...generateFormatUtil());
+      parsedUtils.push(formatterString);
     }
 
     if (utilsSet.has('fetchByPath')) {
-      utilsStatements.push(getFetchByPathNodeFunction());
+      parsedUtils.push(fetchByPathString);
+    }
+
+    if (utilsSet.has('processFile')) {
+      parsedUtils.push(processFileString);
     }
 
     let componentText = `/* eslint-disable */${EOL}`;
-    const imports = this.importCollection.buildImportStatements(skipReactImport);
+    const imports = this.importCollection.buildImportStatements(false);
     imports.forEach((importStatement) => {
       const result = printer.printNode(EmitHint.Unspecified, importStatement, file);
       componentText += result + EOL;
     });
     componentText += EOL;
 
-    utilsStatements.forEach((util) => {
-      const result = printer.printNode(EmitHint.Unspecified, util, file);
-      componentText += result + EOL;
-    });
+    componentText += parsedUtils.join(EOL) + EOL;
 
-    componentText += EOL;
-
-    const { componentText: transpliedText } = transpile(componentText, this.renderConfig);
+    const { componentText: transpliedText } = transpile(componentText, this.renderConfig, true);
 
     return {
       componentText: transpliedText,

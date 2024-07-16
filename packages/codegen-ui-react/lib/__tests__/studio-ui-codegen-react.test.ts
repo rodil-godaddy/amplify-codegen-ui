@@ -13,8 +13,16 @@
   See the License for the specific language governing permissions and
   limitations under the License.
  */
+import { NoApiError } from '@aws-amplify/codegen-ui';
 import { ModuleKind, ScriptTarget, ScriptKind } from '..';
-import { authorHasManySchema, generateWithAmplifyRenderer } from './__utils__';
+import {
+  authorHasManySchema,
+  compositePersonSchema,
+  generateWithAmplifyRenderer,
+  rendererConfigWithGraphQL,
+  userSchema,
+  rendererConfigWithNoApi,
+} from './__utils__';
 
 describe('amplify render tests', () => {
   describe('basic component tests', () => {
@@ -32,18 +40,6 @@ describe('amplify render tests', () => {
       const generatedCode = generateWithAmplifyRenderer('textGolden');
       expect(generatedCode.componentText).toMatchSnapshot();
     });
-
-    it('should generate a simple badge component', () => {});
-
-    it('should generate a simple card component', () => {});
-
-    it('should generate a simple divider component', () => {});
-
-    it('should generate a simple flex component', () => {});
-
-    it('should generate a simple image component', () => {});
-
-    it('should generate a simple string component', () => {});
 
     it('should generate a simple component without variant specific generation', () => {
       const generatedCode = generateWithAmplifyRenderer('buttonGolden');
@@ -88,6 +84,11 @@ describe('amplify render tests', () => {
       expect(generatedCode.componentText).toMatchSnapshot();
     });
 
+    it('should add GraphQL model imports', () => {
+      const generatedCode = generateWithAmplifyRenderer('componentWithDataBinding', rendererConfigWithGraphQL);
+      expect(generatedCode.componentText).toMatchSnapshot();
+    });
+
     it('should not have useDataStoreBinding when there is no predicate', () => {
       const generatedCode = generateWithAmplifyRenderer('dataBindingWithoutPredicate');
       expect(generatedCode.componentText).toMatchSnapshot();
@@ -96,6 +97,37 @@ describe('amplify render tests', () => {
     it('should render with data binding in child elements', () => {
       const generatedCode = generateWithAmplifyRenderer('childComponentWithDataBinding');
       expect(generatedCode.componentText).toMatchSnapshot();
+    });
+  });
+
+  describe('renderer configurations with NoApi', () => {
+    it('should throw if component has data binding', () => {
+      expect(() => {
+        generateWithAmplifyRenderer('workflow/dataStoreCreateItem', rendererConfigWithNoApi);
+      }).toThrow(NoApiError);
+    });
+
+    it('should render component without data binding successfully', () => {
+      const generatedCode = generateWithAmplifyRenderer('buttonGolden', rendererConfigWithNoApi);
+      expect(generatedCode.componentText).toMatchSnapshot();
+    });
+
+    it('should render component without graphql types', () => {
+      const generatedCode = generateWithAmplifyRenderer('componentWithDataBinding', {
+        apiConfiguration: {
+          dataApi: 'GraphQL',
+          typesFilePath: '',
+          fragmentsFilePath: '../graphql/fragments',
+          mutationsFilePath: '../graphql/mutations',
+          queriesFilePath: '../graphql/queries',
+          subscriptionsFilePath: '../graphql/subscriptions',
+        },
+        module: ModuleKind.ES2020,
+        target: ScriptTarget.ES2020,
+        script: ScriptKind.JSX,
+        renderTypeDeclarations: true,
+      });
+      expect(generatedCode.declaration).toMatchSnapshot();
     });
   });
 
@@ -121,7 +153,12 @@ describe('amplify render tests', () => {
     });
 
     it('should render collection with data binding if binding name is items', () => {
-      const generatedCode = generateWithAmplifyRenderer('collectionWithBindingItemsName');
+      const generatedCode = generateWithAmplifyRenderer(
+        'collectionWithBindingItemsName',
+        undefined,
+        undefined,
+        userSchema,
+      );
       expect(generatedCode.componentText).toMatchSnapshot();
     });
 
@@ -142,6 +179,65 @@ describe('amplify render tests', () => {
     it('should render if model name collides with component types', () => {
       const { componentText } = generateWithAmplifyRenderer('collectionWithModelNameCollisions');
       expect(componentText).toMatchSnapshot();
+    });
+
+    it('should render concatenated keys if model has composite keys', () => {
+      const { componentText } = generateWithAmplifyRenderer(
+        'compositePersonCollectionComponent',
+        {},
+        false,
+        compositePersonSchema,
+      );
+      expect(componentText).toContain(`key={\`\${item.name}\${item.description}\`}`);
+      expect(componentText).toMatchSnapshot();
+    });
+
+    describe('GraphQL', () => {
+      it('should render collection with data binding', () => {
+        const generatedCode = generateWithAmplifyRenderer('collectionWithBinding', rendererConfigWithGraphQL);
+        expect(generatedCode.componentText).toMatchSnapshot();
+      });
+
+      it('should render collection with data binding - amplify js v6', () => {
+        const { componentText } = generateWithAmplifyRenderer('collectionWithBinding', {
+          ...rendererConfigWithGraphQL,
+          dependencies: { 'aws-amplify': '^6.0.0' },
+        });
+        expect(componentText).not.toContain('import { API } from "aws-amplify";');
+        expect(componentText).not.toContain(`await API.graphql`);
+        expect(componentText).toContain('import { generateClient } from "aws-amplify/api";');
+        expect(componentText).toContain(`await client.graphql`);
+
+        expect(componentText).toMatchSnapshot();
+      });
+
+      it('should render collection without data binding', () => {
+        const generatedCode = generateWithAmplifyRenderer('collectionWithoutBinding', rendererConfigWithGraphQL);
+        expect(generatedCode.componentText).toMatchSnapshot();
+      });
+
+      it('should render collection with data binding with no predicate', () => {
+        const generatedCode = generateWithAmplifyRenderer(
+          'collectionWithBindingWithoutPredicate',
+          rendererConfigWithGraphQL,
+        );
+        expect(generatedCode.componentText).toMatchSnapshot();
+      });
+
+      it('should render nested query if model has a hasMany relationship', () => {
+        const { componentText } = generateWithAmplifyRenderer(
+          'authorCollectionComponent',
+          rendererConfigWithGraphQL,
+          false,
+          authorHasManySchema,
+        );
+        expect(componentText).toMatchSnapshot();
+      });
+
+      it('should not render nested query if the data schema is not provided', () => {
+        const { componentText } = generateWithAmplifyRenderer('authorCollectionComponent', rendererConfigWithGraphQL);
+        expect(componentText).toMatchSnapshot();
+      });
     });
   });
 
@@ -275,6 +371,16 @@ describe('amplify render tests', () => {
     });
   });
 
+  describe('component referencing an aliased component', () => {
+    it('should have an import statement referencing non-aliased source path and name for custom component', () => {
+      const { componentText } = generateWithAmplifyRenderer('components/footerWithCustomButton');
+      expect(componentText).toContain('import { Button as ButtonCustom, ButtonProps } from "./Button";');
+      expect(componentText).not.toContain('import { Button16 as ButtonCustom } from "./Button16";');
+      expect(componentText).not.toContain('import { Button18 as ButtonCustom } from "./Button18";');
+      expect(componentText).not.toContain('import { Button110 as ButtonCustom } from "./Button110";');
+    });
+  });
+
   describe('custom render config', () => {
     it('should render ES5', () => {
       expect(
@@ -357,6 +463,38 @@ describe('amplify render tests', () => {
 
       it('DataStoreDeleteItem', () => {
         expect(generateWithAmplifyRenderer('workflow/dataStoreDeleteItem')).toMatchSnapshot();
+      });
+    });
+
+    describe('GraphQL', () => {
+      it('DataStoreCreateItem', () => {
+        expect(
+          generateWithAmplifyRenderer('workflow/dataStoreCreateItem', rendererConfigWithGraphQL),
+        ).toMatchSnapshot();
+      });
+
+      it('DataStoreCreateItem - amplify js v6', () => {
+        const { componentText } = generateWithAmplifyRenderer('workflow/dataStoreCreateItem', {
+          ...rendererConfigWithGraphQL,
+          dependencies: { 'aws-amplify': '^6.0.0' },
+        });
+        expect(componentText).toMatchSnapshot();
+        expect(componentText).not.toContain('import { API } from "aws-amplify";');
+        expect(componentText).not.toContain(`await API.graphql`);
+        expect(componentText).toContain('import { generateClient } from "aws-amplify/api";');
+        expect(componentText).toContain(`await client.graphql`);
+      });
+
+      it('DataStoreUpdateItem', () => {
+        expect(
+          generateWithAmplifyRenderer('workflow/dataStoreUpdateItem', rendererConfigWithGraphQL),
+        ).toMatchSnapshot();
+      });
+
+      it('DataStoreDeleteItem', () => {
+        expect(
+          generateWithAmplifyRenderer('workflow/dataStoreDeleteItem', rendererConfigWithGraphQL),
+        ).toMatchSnapshot();
       });
     });
 
@@ -540,6 +678,21 @@ describe('amplify render tests', () => {
         ).toMatchSnapshot();
       });
     });
+
+    describe('alias parent', () => {
+      it('should render parent with aliased child instead of primitive', () => {
+        expect(generateWithAmplifyRenderer('custom/aliasParent').componentText).toMatchSnapshot();
+      });
+
+      it('should render declarations', () => {
+        expect(
+          generateWithAmplifyRenderer('custom/aliasParent', {
+            script: ScriptKind.JS,
+            renderTypeDeclarations: true,
+          }).declaration,
+        ).toMatchSnapshot();
+      });
+    });
   });
 
   describe('primitives', () => {
@@ -582,6 +735,10 @@ describe('amplify render tests', () => {
     test('Icon', () => {
       expect(generateWithAmplifyRenderer('primitives/IconPrimitive').componentText).toMatchSnapshot();
     });
+
+    test('Icon with lower-cased type `object` for values', () => {
+      expect(generateWithAmplifyRenderer('primitives/IconPrimitiveWithLowerCasedType').componentText).toMatchSnapshot();
+    });
   });
 
   describe('icon-indices', () => {
@@ -595,6 +752,13 @@ describe('amplify render tests', () => {
       it('supports auth bindings in actions', () => {
         expect(
           generateWithAmplifyRenderer('bindings/auth/componentWithAuthActionBinding').componentText,
+        ).toMatchSnapshot();
+      });
+      it('supports auth bindings in actions - amplify js v6', () => {
+        expect(
+          generateWithAmplifyRenderer('bindings/auth/componentWithAuthActionBinding', {
+            dependencies: { 'aws-amplify': '^6.0.0' },
+          }).componentText,
         ).toMatchSnapshot();
       });
     });

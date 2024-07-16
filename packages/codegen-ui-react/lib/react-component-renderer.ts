@@ -44,7 +44,9 @@ import {
 } from './workflow';
 import { ImportCollection, ImportSource, ImportValue } from './imports';
 import { addFormAttributes } from './forms';
-import { renderArrayFieldComponent } from './utils/forms/array-field-component';
+import { shouldWrapInArrayField, renderArrayFieldComponent, getDecoratedLabel } from './forms/form-renderer-helper';
+import { getIsRequiredValue } from './forms/form-renderer-helper/label-decorator';
+import { renderStorageFieldComponent } from './utils/forms/storage-field-component';
 
 export class ReactComponentRenderer<TPropIn> extends ComponentRendererBase<
   TPropIn,
@@ -65,6 +67,7 @@ export class ReactComponentRenderer<TPropIn> extends ComponentRendererBase<
     renderChildren: ((children: StudioComponentChild[]) => JsxChild[]) | undefined = undefined,
   ): JsxElement | JsxSelfClosingElement {
     const children = this.component.children ?? [];
+    const { fieldConfigs, labelDecorator } = this.componentMetadata.formMetadata || {};
 
     const element = factory.createJsxElement(
       this.renderOpeningElement(),
@@ -72,27 +75,51 @@ export class ReactComponentRenderer<TPropIn> extends ComponentRendererBase<
       factory.createJsxClosingElement(factory.createIdentifier(this.component.componentType)),
     );
 
-    this.importCollection.addImport(ImportSource.UI_REACT, this.component.componentType);
+    if (this.component.componentType !== 'StorageField') {
+      this.importCollection.addImport(ImportSource.UI_REACT, this.component.componentType);
+    }
 
-    // Add ArrayField wrapper to element if Array type
-    if (this.componentMetadata.formMetadata?.fieldConfigs[this.component.name]?.isArray) {
-      this.importCollection.addImport(ImportSource.UI_REACT, 'Icon');
-      this.importCollection.addImport(ImportSource.UI_REACT, 'Badge');
-      this.importCollection.addImport(ImportSource.UI_REACT, 'ScrollView');
-      this.importCollection.addImport(ImportSource.UI_REACT, 'Divider');
-      this.importCollection.addImport(ImportSource.UI_REACT, 'Text');
-      this.importCollection.addImport(ImportSource.UI_REACT, 'useTheme');
-
+    if (fieldConfigs && fieldConfigs[this.component.name]) {
+      const isRequired = getIsRequiredValue(this.component.properties.isRequired);
       let label = '';
       if (typeof this.component.properties.label === 'object' && 'value' in this.component.properties.label) {
         label = this.component.properties.label.value.toString() ?? '';
       }
-      return renderArrayFieldComponent(
-        this.component.name,
-        label,
-        this.componentMetadata.formMetadata?.fieldConfigs,
-        element,
-      );
+
+      if (this.component.componentType === 'StorageField') {
+        this.importCollection.addImport(ImportSource.REACT_STORAGE, 'StorageManager');
+        this.importCollection.addImport(ImportSource.UI_REACT_INTERNAL, 'Field');
+        this.importCollection.addMappedImport(ImportValue.GET_OVERRIDE_PROPS);
+        this.importCollection.addImport(ImportSource.UTILS, 'processFile');
+        return renderStorageFieldComponent(
+          this.component,
+          this.componentMetadata,
+          label,
+          fieldConfigs,
+          labelDecorator,
+          isRequired,
+        );
+      }
+
+      if (shouldWrapInArrayField(fieldConfigs[this.component.name])) {
+        // Add ArrayField wrapper to element if Array type
+        this.importCollection.addImport(ImportSource.UI_REACT, 'Icon');
+        this.importCollection.addImport(ImportSource.UI_REACT, 'Badge');
+        this.importCollection.addImport(ImportSource.UI_REACT, 'ScrollView');
+        this.importCollection.addImport(ImportSource.UI_REACT, 'Divider');
+        this.importCollection.addImport(ImportSource.UI_REACT, 'Text');
+        this.importCollection.addImport(ImportSource.UI_REACT, 'useTheme');
+
+        return renderArrayFieldComponent(
+          this.component.name,
+          label,
+          fieldConfigs,
+          element,
+          labelDecorator,
+          isRequired,
+          this.importCollection.rendererConfig?.apiConfiguration?.dataApi,
+        );
+      }
     }
 
     return element;
@@ -112,6 +139,27 @@ export class ReactComponentRenderer<TPropIn> extends ComponentRendererBase<
           { bindingProperties: { property: stateName } },
           key,
         );
+      }
+      if (
+        this.componentMetadata.formMetadata &&
+        this.componentMetadata.formMetadata.fieldConfigs[this.component.name]
+      ) {
+        const {
+          labelDecorator,
+          fieldConfigs: {
+            [this.component.name]: { isArray },
+          },
+        } = this.componentMetadata.formMetadata;
+        const isRequired = getIsRequiredValue(this.component.properties.isRequired);
+        if (
+          ((key === 'children' && this.component.componentType === 'ToggleButton') || key === 'label') &&
+          ((labelDecorator && labelDecorator === 'required' && isRequired) ||
+            (labelDecorator === 'optional' && !isRequired)) &&
+          'value' in value &&
+          !isArray
+        ) {
+          return getDecoratedLabel(key, value.value.toString(), labelDecorator);
+        }
       }
       return buildOpeningElementProperties(this.componentMetadata, value, key);
     });
@@ -151,9 +199,15 @@ export class ReactComponentRenderer<TPropIn> extends ComponentRendererBase<
     ];
 
     if (this.componentMetadata.formMetadata) {
-      attributes.push(...addFormAttributes(this.component, this.componentMetadata.formMetadata));
+      attributes.push(
+        ...addFormAttributes(
+          this.component,
+          this.componentMetadata.formMetadata,
+          this.componentMetadata.dataSchemaMetadata,
+          this.importCollection.rendererConfig?.apiConfiguration?.dataApi,
+        ),
+      );
     }
-    // IT SPREADS HERE
     this.addPropsSpreadAttributes(attributes);
 
     return factory.createJsxOpeningElement(

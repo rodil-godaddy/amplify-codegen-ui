@@ -13,11 +13,17 @@
   See the License for the specific language governing permissions and
   limitations under the License.
  */
-import { FormStyleConfig } from './style';
+import { FormStyleConfig, LabelDecorator } from './style';
 import { FormDefinitionElement, FormDefinitionButtonElement } from './form-definition-element';
 import { StudioGenericFieldConfig } from './fields';
+import { DataFieldDataType, GenericDataRelationshipType } from '../data';
 
-export type ModelFieldsConfigs = { [key: string]: StudioGenericFieldConfig };
+export type ExtendedStudioGenericFieldConfig = StudioGenericFieldConfig & {
+  dataType?: DataFieldDataType;
+  relationship?: GenericDataRelationshipType;
+};
+
+export type ModelFieldsConfigs = { [key: string]: ExtendedStudioGenericFieldConfig };
 
 export type ButtonConfig = {
   buttonConfigs: {
@@ -31,7 +37,12 @@ export type ButtonConfig = {
 
 export type FormDefinition = {
   form: {
-    layoutStyle: { horizontalGap: FormStyleConfig; verticalGap: FormStyleConfig; outerPadding: FormStyleConfig };
+    layoutStyle: {
+      horizontalGap: FormStyleConfig;
+      verticalGap: FormStyleConfig;
+      outerPadding: FormStyleConfig;
+    };
+    labelDecorator?: LabelDecorator;
   };
   elements: { [element: string]: FormDefinitionElement };
   buttons: ButtonConfig;

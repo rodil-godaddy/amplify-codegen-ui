@@ -42,7 +42,6 @@ import {
   getDeclarationFilename,
   formatCode,
 } from './react-studio-template-renderer-helper';
-import { RequiredKeys } from './utils/type-utils';
 
 export type ReactThemeStudioTemplateRendererOptions = {
   renderDefaultTheme?: boolean;
@@ -54,12 +53,13 @@ export class ReactThemeStudioTemplateRenderer extends StudioTemplateRenderer<
   ReactOutputManager,
   {
     componentText: string;
+    declaration: string | undefined;
     renderComponentToFilesystem: (outputPath: string) => Promise<void>;
   }
 > {
   protected importCollection = new ImportCollection();
 
-  protected renderConfig: RequiredKeys<ReactRenderConfig, keyof typeof defaultRenderConfig>;
+  protected renderConfig: ReactRenderConfig & typeof defaultRenderConfig;
 
   protected options: ReactThemeStudioTemplateRendererOptions | undefined;
 
@@ -87,6 +87,7 @@ export class ReactThemeStudioTemplateRenderer extends StudioTemplateRenderer<
 
     return {
       componentText: transpiledComponentText,
+      declaration,
       renderComponentToFilesystem: async (outputPath: string) => {
         await this.renderComponentToFilesystem(transpiledComponentText)(this.fileName)(outputPath);
         if (declaration) {

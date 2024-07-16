@@ -31,7 +31,14 @@ export const FIELD_TYPE_MAP: {
   },
   String: {
     defaultComponent: 'TextField',
-    supportedComponents: new Set(['TextAreaField', 'TextField', 'PasswordField']),
+    supportedComponents: new Set([
+      'TextAreaField',
+      'TextField',
+      'PasswordField',
+      'Autocomplete',
+      'SelectField',
+      'StorageField',
+    ]),
   },
   Int: {
     defaultComponent: 'NumberField',
@@ -54,8 +61,8 @@ export const FIELD_TYPE_MAP: {
     supportedComponents: new Set(['DateTimeField']),
   },
   AWSTimestamp: {
-    defaultComponent: 'DateTimeField',
-    supportedComponents: new Set(['DateTimeField']),
+    defaultComponent: 'NumberField',
+    supportedComponents: new Set(['DateTimeField', 'NumberField']),
   },
   AWSEmail: {
     defaultComponent: 'EmailField',
@@ -86,8 +93,8 @@ export const FIELD_TYPE_MAP: {
     supportedComponents: new Set(['RadioGroupField', 'SelectField']),
   },
   Relationship: {
-    defaultComponent: 'SelectField',
-    supportedComponents: new Set(['SelectField']),
+    defaultComponent: 'Autocomplete',
+    supportedComponents: new Set(['Autocomplete']),
   },
   NonModel: {
     defaultComponent: 'TextAreaField',

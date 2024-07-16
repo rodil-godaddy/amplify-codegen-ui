@@ -17,4 +17,3 @@ export * from './components';
 export * from './generators';
 export * from './themes';
 export * from './forms';
-export * from './views';

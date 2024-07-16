@@ -65,6 +65,7 @@ import {
   VisuallyHiddenProps,
   TextProps,
 } from '@aws-amplify/ui-react';
+import { StorageManagerProps } from '@aws-amplify/ui-react-storage';
 import { HTMLProps } from 'react';
 import { Primitive } from '../primitive';
 import CustomComponentRenderer from './customComponent';
@@ -137,6 +138,7 @@ export class AmplifyFormRenderer extends ReactFormTemplateRenderer {
           this.component,
           this.componentMetadata,
           this.importCollection,
+          this.renderConfig,
           parent,
         ).renderElement(renderChildren);
 
@@ -188,6 +190,7 @@ export class AmplifyFormRenderer extends ReactFormTemplateRenderer {
             this.component,
             this.componentMetadata,
             this.importCollection,
+            this.renderConfig,
             parent,
           ).renderElement(renderChildren);
         }
@@ -366,6 +369,14 @@ export class AmplifyFormRenderer extends ReactFormTemplateRenderer {
           parent,
         ).renderElement(renderChildren);
 
+      case 'StorageField':
+        return new ReactComponentRenderer<StorageManagerProps>(
+          formComponent,
+          this.componentMetadata,
+          this.importCollection,
+          parent,
+        ).renderElement(renderChildren);
+
       case Primitive.TabItem:
         return new ReactComponentRenderer<TabItemProps>(
           formComponent,
@@ -447,7 +458,7 @@ export class AmplifyFormRenderer extends ReactFormTemplateRenderer {
         ).renderElement(renderChildren);
 
       case Primitive.TextField:
-        return new ReactComponentRenderer<TextFieldProps<boolean>>(
+        return new ReactComponentRenderer<TextFieldProps>(
           formComponent,
           this.componentMetadata,
           this.importCollection,
@@ -480,6 +491,15 @@ export class AmplifyFormRenderer extends ReactFormTemplateRenderer {
 
       case Primitive.VisuallyHidden:
         return new ReactComponentRenderer<VisuallyHiddenProps>(
+          formComponent,
+          this.componentMetadata,
+          this.importCollection,
+          parent,
+        ).renderElement(renderChildren);
+
+      case Primitive.Autocomplete:
+        // TODO: after AmplifyUI implements Autocomplete, import Props type
+        return new ReactComponentRenderer<any>(
           formComponent,
           this.componentMetadata,
           this.importCollection,

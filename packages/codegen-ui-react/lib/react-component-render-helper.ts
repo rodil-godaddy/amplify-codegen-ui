@@ -52,13 +52,19 @@ import {
   ArrayLiteralExpression,
 } from 'typescript';
 
-import { FormMetadata, FormStyleConfig } from '@aws-amplify/codegen-ui/lib/types';
-import { ImportCollection, ImportSource } from './imports';
+import {
+  DataFieldDataType,
+  FormMetadata,
+  FormStyleConfig,
+  GenericDataField,
+  StudioFormInputFieldProperty,
+} from '@aws-amplify/codegen-ui/lib/types';
+import { ImportCollection } from './imports';
 import { json, jsonToLiteral } from './react-studio-template-renderer-helper';
 import { getChildPropMappingForComponentName } from './workflow/utils';
 import nameReplacements from './name-replacements';
 import keywords from './keywords';
-import { buildAccessChain } from './forms/form-state';
+import { buildAccessChain } from './forms/form-renderer-helper/form-state';
 
 export function getFixedComponentPropValueExpression(prop: FixedStudioComponentProperty): StringLiteral {
   return factory.createStringLiteral(prop.value.toString(), true);
@@ -71,7 +77,9 @@ export function getComponentPropName(componentName?: string): string {
   return 'ComponentWithoutNameProps';
 }
 
-export function isFixedPropertyWithValue(prop: StudioComponentProperty): prop is FixedStudioComponentProperty {
+export function isFixedPropertyWithValue(
+  prop: StudioComponentProperty | StudioFormInputFieldProperty,
+): prop is FixedStudioComponentProperty {
   return typeof prop === 'object' && 'value' in prop;
 }
 
@@ -456,6 +464,19 @@ export function getSyntaxKindToken(operator: RelationalOperator): BinaryOperator
   }
 }
 
+export function parseNumberOperand(operand: string | number | boolean, dataField: GenericDataField | undefined) {
+  if (dataField) {
+    const numberOperandType: DataFieldDataType[] = ['Int', 'Float'];
+    if (numberOperandType.includes(dataField.dataType)) {
+      const parsedOperand = parseFloat(`${operand}`);
+      if (!Number.isNaN(parsedOperand) && Number.isFinite(parsedOperand)) {
+        return parsedOperand;
+      }
+    }
+  }
+  return operand;
+}
+
 export function getConditionalOperandExpression(
   operand: string | number | boolean,
   operandType: string | undefined,
@@ -514,16 +535,10 @@ export function buildConditionalExpression(
       : factory.createIdentifier(property);
 
   return factory.createConditionalExpression(
-    factory.createParenthesizedExpression(
-      factory.createBinaryExpression(
-        propertyAccess,
-        factory.createToken(SyntaxKind.AmpersandAmpersandToken),
-        factory.createBinaryExpression(
-          propertyAccess,
-          operatorToken,
-          getConditionalOperandExpression(operand, operandType),
-        ),
-      ),
+    factory.createBinaryExpression(
+      propertyAccess,
+      operatorToken,
+      getConditionalOperandExpression(operand, operandType),
     ),
     factory.createToken(SyntaxKind.QuestionToken),
     resolvePropToExpression(componentMetadata, then),
@@ -658,7 +673,7 @@ export function addBindingPropertiesImports(
   if (typeof component === 'object' && 'bindingProperties' in component) {
     Object.entries(component.bindingProperties).forEach(([, binding]) => {
       if (typeof binding === 'object' && 'bindingProperties' in binding && 'model' in binding.bindingProperties) {
-        importCollection.addImport(ImportSource.LOCAL_MODELS, binding.bindingProperties.model);
+        importCollection.addModelImport(binding.bindingProperties.model);
       }
     });
   }

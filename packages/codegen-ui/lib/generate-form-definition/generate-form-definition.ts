@@ -15,7 +15,14 @@
  */
 
 import { mapModelFieldsConfigs, mapElementMatrix, mapStyles, mapElements, mapButtons } from './helpers';
-import { StudioForm, FormDefinition, ModelFieldsConfigs, StudioFieldPosition, GenericDataSchema } from '../types';
+import {
+  StudioForm,
+  FormDefinition,
+  ModelFieldsConfigs,
+  StudioFieldPosition,
+  GenericDataSchema,
+  FormFeatureFlags,
+} from '../types';
 import { InvalidInputError } from '../errors';
 
 /**
@@ -28,12 +35,14 @@ import { InvalidInputError } from '../errors';
 export function generateFormDefinition({
   form,
   dataSchema,
+  featureFlags,
 }: {
   form: StudioForm;
   dataSchema?: GenericDataSchema;
+  featureFlags?: FormFeatureFlags;
 }): FormDefinition {
   const formDefinition: FormDefinition = {
-    form: { layoutStyle: mapStyles(form.style) },
+    form: { layoutStyle: mapStyles(form.style), labelDecorator: form.labelDecorator || 'none' },
     elements: {},
     buttons: {
       buttonConfigs: {},
@@ -55,6 +64,8 @@ export function generateFormDefinition({
       dataSchema,
       formDefinition,
       dataTypeName: form.dataType.dataTypeName,
+      formActionType: form.formActionType,
+      featureFlags,
     });
   }
 
@@ -69,8 +80,8 @@ export function generateFormDefinition({
     .concat(
       Object.entries(form.sectionalElements).map(([elementName, elementConfig]) => ({
         name: elementName,
-        position: elementConfig.position,
-        excluded: false,
+        position: 'position' in elementConfig ? elementConfig.position : undefined,
+        excluded: 'excluded' in elementConfig ? elementConfig.excluded : false,
       })),
     );
 

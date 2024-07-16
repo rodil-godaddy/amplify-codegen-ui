@@ -1,0 +1,216 @@
+"""
+This file keeps track of the test schema
+so that we can update schema.ts when codegenVersion changes.
+"""
+#non-models
+
+type CustomType {
+    StringVal: String
+    NumVal: Int
+    BoolVal: Boolean
+}
+
+#enums
+
+enum City {
+    SAN_FRANCISCO
+    NEW_YORK
+    HOUSTON
+    AUSTIN
+    LOS_ANGELES
+    CHICAGO
+    SAN_DIEGO
+    NEW_HAVEN
+    PORTLAND
+    SEATTLE
+}
+
+# models
+
+type UserPreference @model {
+    favoriteColor: String  
+}
+
+type User @model {
+    id: ID!
+    firstName: String
+    lastName: String
+    age: Int
+    isLoggedIn: Boolean
+    loggedInColor: String
+    loggedOutColor: String
+}
+
+type Listing @model {
+  id: ID!
+    title: String
+    priceUSD: Int
+    description: String
+}
+
+type ComplexModel @model {
+    listElement: [String]!
+    myCustomField: CustomType
+}
+
+type Class @model {
+    name: String
+}
+
+type Tag @model {
+    label: String
+    AllSupportedFormFields: [AllSupportedFormFields] @manyToMany(relationName: "AllSupportedFormFieldsTag")
+}
+
+type Owner @model {
+    name: String
+    AllSupportedFormFields: AllSupportedFormFields @hasOne
+}
+
+type Student @model {
+    name: String
+    allSupportedFormFieldsID: ID @index(name: "byAllSupportedFormFields")
+}
+
+"""
+This model aims to include all data types that are supported by form builder
+"""
+type AllSupportedFormFields @model {
+    id: ID!
+    string: String
+    stringArray: [String]
+    int: Int
+    float: Float
+    awsDate: AWSDate
+    awsTime: AWSTime
+    awsDateTime: AWSDateTime
+    awsTimestamp: AWSTimestamp
+    awsEmail: AWSEmail
+    awsUrl: AWSURL
+    awsIPAddress: AWSIPAddress
+    boolean: Boolean
+    awsJson: AWSJSON
+    awsPhone: AWSPhone
+    enum: City
+    nonModelField: CustomType
+    nonModelFieldArray: [CustomType]
+    HasOneUser: User @hasOne
+    BelongsToOwner: Owner @belongsTo
+    HasManyStudents: [Student] @hasMany(indexName: "byAllSupportedFormFields", fields: ["id"])
+    ManyToManyTags: [Tag] @manyToMany(relationName: "AllSupportedFormFieldsTag")
+}
+
+
+"""
+The following models that start with `CPK` use a custom primary key
+and have relationships with each other
+"""
+type CPKStudent @model {
+  specialStudentId: ID! @primaryKey
+}
+
+type CPKTeacher @model {
+  specialTeacherId: ID! @primaryKey
+  CPKStudent: CPKStudent! @hasOne
+  CPKClasses: [CPKClass] @manyToMany(relationName: "CPKTeacherCPKClass")
+  CPKProjects: [CPKProject] @hasMany(indexName: "byCPKTeacher", fields: ["specialTeacherId"])
+}
+
+type CPKClass @model {
+  specialClassId: ID! @primaryKey
+  CPKTeachers: [CPKTeacher] @manyToMany(relationName: "CPKTeacherCPKClass")
+}
+
+type CPKProject @model {
+  specialProjectId: ID! @primaryKey
+  cPKTeacherID: ID @index(name: "byCPKTeacher")
+}
+
+"""
+The following models that start with `Composite` use a composite keys
+and have relationships with each other
+"""
+
+type CompositeDog @model {
+  name: ID! @primaryKey(sortKeyFields: ["description"])
+  description: String!
+  CompositeBowl: CompositeBowl @hasOne
+  CompositeOwner: CompositeOwner @belongsTo
+  CompositeToys: [CompositeToy] @hasMany
+  CompositeVets: [CompositeVet] @manyToMany(relationName: "CompositeDogCompositeVet")
+}
+
+type CompositeOwner @model {
+  lastName: ID! @primaryKey(sortKeyFields: ["firstName"])
+  firstName: String!
+  CompositeDog: CompositeDog @hasOne
+}
+
+type CompositeToy @model {
+  kind: ID! @primaryKey(sortKeyFields: ["color"])
+  color: String!
+}
+
+type CompositeBowl @model {
+  shape: ID! @primaryKey(sortKeyFields: ["size"])
+  size: String!
+}
+
+type CompositeVet @model {
+  specialty: ID! @primaryKey(sortKeyFields: ["city"])
+  city: String!
+  CompositeDogs: [CompositeDog] @manyToMany(relationName: "CompositeDogCompositeVet")
+}
+
+"""
+BiDirectionalDog belongs to BiDirectionalOwner and BiDirectionalOwner has 1 BiDirectionalDog.
+This means they must be exclusive to each other.
+Note also that BiDirectionalOwner requires a BidirectionlDog.
+
+BiDirectionalDog has many BiDirectionalToys and BiDirectionalToy belongs to BiDirectionalDog.
+This means that a certain BiDirectionalToy can only belong to only 1 BiDirectionalDog.
+Note that BiDirectionalToy requires a BidirectionalDog.
+"""
+
+type BiDirectionalDog @model {
+  name: String
+  BiDirectionalOwner: BiDirectionalOwner @belongsTo
+  BiDirectionalToys: [BiDirectionalToy] @hasMany
+}
+
+type BiDirectionalOwner @model {
+  name: String
+  BiDirectionalDog: BiDirectionalDog! @hasOne
+}
+
+type BiDirectionalToy @model {
+  name: String
+  biDirectionalDogID: ID!
+  BiDirectionalDog: BiDirectionalDog! @belongsTo(fields: ["biDirectionalDogID"])
+}
+
+"""
+This model has a field with the same name but lower-cased first letter
+"""
+type ModelWithVariableCollisions @model {
+  modelWithVariableCollisions: String
+}
+
+"""
+Dealership and Car is related in bidirectional 1:m.
+Dealership has `fields` defined on its relationship with Car.
+This generates a schema.js that is different from when `fields` is not specified
+in bidirectional 1:m.
+"""
+type Dealership @model {
+  id: ID!
+  name: String!
+  cars: [Car] @hasMany(fields: ["id"])
+}
+
+type Car @model {
+  id: ID!
+  name: String!
+  dealershipId: ID
+  dealership: Dealership @belongsTo(fields: ["dealershipId"])
+}

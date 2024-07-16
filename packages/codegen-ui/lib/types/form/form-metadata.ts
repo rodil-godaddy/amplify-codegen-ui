@@ -13,31 +13,48 @@
   See the License for the specific language governing permissions and
   limitations under the License.
  */
-import { DataFieldDataType } from '../data';
+import { DataFieldDataType, GenericDataRelationshipType } from '../data';
 import { FieldValidationConfiguration } from './form-validation';
-import { FormStyleConfig, StudioFormStyle } from './style';
+import { StudioFormValueMappings } from './input-config';
+import { FormStyleConfig, LabelDecorator, StudioFormStyle } from './style';
 
 /**
  * Form Action type definition
  */
 export type StudioFormActionType = 'create' | 'update';
 
+export type StudioDataSourceType = 'DataStore' | 'Custom';
+
+/**
+ * Data type definition for StudioForm
+ */
+export type StudioFormDataType = {
+  dataSourceType: StudioDataSourceType;
+
+  dataTypeName: string;
+};
+
 export type FieldConfigMetadata = {
   // ex. name field has a string validation type where the rule is char length > 5
   validationRules: FieldValidationConfiguration[];
-  // component field is of type AWSTimestamp will need to map this to date then get time from date
+  // needed for mapping conversions e.g. for Int
   dataType?: DataFieldDataType;
+  relationship?: GenericDataRelationshipType;
   // for JSON type with invalid variable field name ie. { "1first-Name": "John" } => "firstName"
   sanitizedFieldName?: string;
   isArray?: boolean;
   componentType: string;
   studioFormComponentType?: string;
+  // used for dynamic mapping of displayValue
+  valueMappings?: StudioFormValueMappings;
 };
 
 export type FormMetadata = {
   id?: string;
   formActionType: StudioFormActionType;
+  dataType: StudioFormDataType;
   name: string;
   fieldConfigs: Record<string, FieldConfigMetadata>;
-  layoutConfigs: Record<keyof StudioFormStyle, FormStyleConfig>;
+  layoutConfigs: Record<keyof Omit<StudioFormStyle, 'labelDecorator'>, FormStyleConfig>;
+  labelDecorator?: LabelDecorator;
 };

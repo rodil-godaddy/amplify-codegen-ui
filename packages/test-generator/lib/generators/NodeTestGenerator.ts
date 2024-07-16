@@ -67,14 +67,19 @@ export class NodeTestGenerator extends TestGenerator {
   constructor(params: TestGeneratorParams) {
     super(params);
     this.componentRendererFactory = new StudioTemplateRendererFactory(
-      (component: StudioComponent) => new AmplifyRenderer(component, this.renderConfig),
+      (component: StudioComponent) =>
+        new AmplifyRenderer(component, this.renderConfig, getGenericFromDataStore(schema)),
     );
     this.themeRendererFactory = new StudioTemplateRendererFactory(
       (theme: StudioTheme) => new ReactThemeStudioTemplateRenderer(theme, this.renderConfig),
     );
 
     this.formRendererFactory = new StudioTemplateRendererFactory(
-      (form: StudioForm) => new AmplifyFormRenderer(form, getGenericFromDataStore(schema), this.renderConfig),
+      (form: StudioForm) =>
+        new AmplifyFormRenderer(form, getGenericFromDataStore(schema), this.renderConfig, {
+          isNonModelSupported: true,
+          isRelationshipSupported: true,
+        }),
     );
     this.viewRendererFactory = new StudioTemplateRendererFactory(
       (view: StudioView) => new AmplifyViewRenderer(view, getGenericFromDataStore(schema), this.renderConfig),

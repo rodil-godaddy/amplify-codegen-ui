@@ -14,7 +14,7 @@
   limitations under the License.
  */
 describe('Generated Components', () => {
-  before(() => {
+  beforeEach(() => {
     cy.visit('http://localhost:3000/component-tests');
   });
 
@@ -225,6 +225,24 @@ describe('Generated Components', () => {
         cy.contains('Doodle');
         cy.contains('Feather');
         cy.contains('Cap');
+      });
+    });
+
+    it('Supports hasOne, belongsTo, and hasMany relationships', () => {
+      cy.get('#collectionWithCompositeKeysAndRelationships').within(() => {
+        cy.contains('Ruca');
+        cy.contains('Owner: Erica');
+        cy.contains('Bowl: round');
+        cy.contains('Toys: stick, ball');
+      });
+    });
+
+    it('Supports between predicates', () => {
+      cy.get('#collectionWithBetweenPredicate').within(() => {
+        cy.contains('Real');
+        cy.contains('Last');
+        cy.contains('Another').should('not.exist');
+        cy.contains('Too Young').should('not.exist');
       });
     });
   });

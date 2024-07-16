@@ -26,12 +26,14 @@ import log from 'loglevel';
 import * as ComponentSchemas from '../components';
 import * as ThemeSchemas from '../themes';
 import * as FormSchemas from '../forms';
-import * as ViewSchemas from '../views';
 
-const DEFAULT_RENDER_CONFIG = {
+const DEFAULT_RENDER_CONFIG: ReactRenderConfig = {
   module: ModuleKind.CommonJS,
   target: ScriptTarget.ES2015,
   script: ScriptKind.TSX,
+  apiConfiguration: {
+    dataApi: 'DataStore',
+  },
 };
 
 const DEFAULT_OUTPUT_CONFIG = {
@@ -49,8 +51,8 @@ export type TestCase = {
 export type TestGeneratorParams = {
   writeToLogger: boolean;
   writeToDisk: boolean;
-  renderConfigOverride?: ReactRenderConfig;
-  outputConfigOverride?: ReactOutputConfig;
+  renderConfigOverride?: Partial<ReactRenderConfig>;
+  outputConfigOverride?: Partial<ReactOutputConfig>;
   immediatelyThrowGenerateErrors?: boolean;
 };
 
@@ -121,9 +123,18 @@ export abstract class TestGenerator {
       try {
         if (this.params.writeToDisk) {
           const res = this.writeFormToDisk(schema as StudioForm);
-          if (res.formMetadata?.fieldConfigs && Object.keys(res.formMetadata.fieldConfigs).length) {
-            utilsFunctions.add('validation');
-            utilsFunctions.add('fetchByPath');
+          if (res.formMetadata?.fieldConfigs) {
+            if (Object.keys(res.formMetadata.fieldConfigs).length) {
+              utilsFunctions.add('validation');
+              utilsFunctions.add('fetchByPath');
+            }
+            if (
+              Object.values(res.formMetadata.fieldConfigs).find(
+                (fieldConfig) => fieldConfig.componentType === 'StorageField',
+              )
+            ) {
+              utilsFunctions.add('processFile');
+            }
           }
         }
 
@@ -134,30 +145,6 @@ export abstract class TestGenerator {
           log.info('### formImports');
           log.info(this.decorateTypescriptWithMarkdown(importsText));
           log.info('### formText');
-          log.info(this.decorateTypescriptWithMarkdown(compText));
-        }
-      } catch (err) {
-        if (this.params.immediatelyThrowGenerateErrors) {
-          throw err;
-        }
-        renderErrors[name] = err;
-      }
-    };
-
-    const generateView = (testCase: TestCase) => {
-      const { name, schema } = testCase;
-      try {
-        if (this.params.writeToDisk) {
-          this.writeViewToDisk(schema as StudioView);
-        }
-
-        if (this.params.writeToLogger) {
-          const { importsText, compText } = this.renderView(schema as StudioView);
-          log.info(`# ${name}`);
-          log.info('## View Only Output');
-          log.info('### viewImports');
-          log.info(this.decorateTypescriptWithMarkdown(importsText));
-          log.info('### viewText');
           log.info(this.decorateTypescriptWithMarkdown(compText));
         }
       } catch (err) {
@@ -242,9 +229,6 @@ export abstract class TestGenerator {
         case 'Snippet':
           generateSnippet([testCase]);
           break;
-        case 'View':
-          generateView(testCase);
-          break;
         default:
           throw new Error('Expected either a `Component`, `Theme`, `Form` test case type');
       }
@@ -252,9 +236,7 @@ export abstract class TestGenerator {
 
     generateIndexFile(testCases);
 
-    if (utilsFunctions.size) {
-      generateUtilsFile([...utilsFunctions]);
-    }
+    generateUtilsFile([...utilsFunctions]);
 
     // only test with 4 components for performance
     generateSnippet(testCases.filter((testCase) => testCase.testType === 'Component').slice(0, 4));
@@ -312,9 +294,6 @@ export abstract class TestGenerator {
       }),
       ...Object.entries(FormSchemas).map(([name, schema]) => {
         return { name, schema, testType: 'Form' } as TestCase;
-      }),
-      ...Object.entries(ViewSchemas).map(([name, schema]) => {
-        return { name, schema, testType: 'View' } as TestCase;
       }),
     ].filter((testCase) => !disabledSchemaSet.has(testCase.name));
   }

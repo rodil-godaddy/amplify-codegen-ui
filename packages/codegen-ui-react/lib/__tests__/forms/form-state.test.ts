@@ -14,7 +14,11 @@
   limitations under the License.
  */
 import { factory } from 'typescript';
-import { buildNestedStateSet, setFieldState } from '../../forms/form-state';
+import {
+  buildNestedStateSet,
+  setFieldState,
+  getDefaultValueExpression,
+} from '../../forms/form-renderer-helper/form-state';
 import { genericPrinter } from '../__utils__';
 
 describe('nested state', () => {
@@ -55,5 +59,31 @@ describe('set field state', () => {
     const fieldStateSetter = setFieldState('firstName', factory.createStringLiteral('john c'));
     const response = genericPrinter(fieldStateSetter);
     expect(response).toMatchSnapshot();
+  });
+});
+
+describe('get default values', () => {
+  it('should generate the proper default value for an empty TextField', () => {
+    const expression = getDefaultValueExpression('name', 'TextField');
+    expect(expression).toMatchObject({ text: '' });
+  });
+
+  it('should generate the proper default value for a SliderField', () => {
+    const expression = getDefaultValueExpression('name', 'SliderField');
+    expect(expression).toMatchObject({ text: '0' });
+  });
+
+  it('should generate the proper default value for non-empty TextField', () => {
+    const expression = getDefaultValueExpression('name', 'TextField', undefined, false, false, 'Don Corleone');
+    expect(expression).toMatchObject({ text: 'Don Corleone' });
+  });
+
+  it('should generate the proper default value for non-empty TextField array', () => {
+    const expression = getDefaultValueExpression('name', 'TextField', undefined, true, false, 'mobster');
+    expect(expression).toEqual(
+      expect.objectContaining({
+        elements: expect.arrayContaining([expect.objectContaining({ text: 'mobster' })]),
+      }),
+    );
   });
 });

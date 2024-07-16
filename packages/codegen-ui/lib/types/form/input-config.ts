@@ -29,14 +29,17 @@ export type StudioFormInputFieldProperty =
   | BoundStudioComponentProperty;
 
 export type StudioFormValueMappings = {
-  values: { displayValue?: StudioFormInputFieldProperty; value: StudioFormInputFieldProperty }[];
+  values: {
+    displayValue?: StudioFormInputFieldProperty & { isDefault?: boolean };
+    value: StudioFormInputFieldProperty;
+  }[];
 
   bindingProperties?: { [propertyName: string]: StudioComponentPropertyBinding };
 };
 
 // represents API shape after type casting
 export type StudioFieldInputConfig = {
-  type: string;
+  type?: string;
 
   required?: boolean;
 
@@ -65,4 +68,20 @@ export type StudioFieldInputConfig = {
   value?: string;
 
   isArray?: boolean;
+
+  fileUploaderConfig?: {
+    accessLevel: StorageAccessLevel;
+
+    acceptedFileTypes: string[];
+
+    showThumbnails?: boolean;
+
+    isResumable?: boolean;
+
+    maxFileCount?: number;
+
+    maxSize?: number;
+  };
 };
+
+export type StorageAccessLevel = 'public' | 'protected' | 'private';

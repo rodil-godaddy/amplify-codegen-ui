@@ -17,7 +17,7 @@ import { useEffect, useState, useRef } from 'react';
 import { AmplifyProvider } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
 import { DataStore } from 'aws-amplify';
-import { User, Listing, Class } from './models';
+import { User, Listing, Class, CompositeBowl, CompositeToy, CompositeOwner, CompositeDog } from './models';
 import {
   ViewTest,
   ViewWithButton,
@@ -60,6 +60,8 @@ import {
   SearchableCollection,
   ComponentWithAuthBinding,
   DataBindingNamedClass,
+  CollectionWithCompositeKeysAndRelationships,
+  CollectionWithBetweenPredicate,
 } from './ui-components'; // eslint-disable-line import/extensions
 import { initializeAuthMockData } from './mock-utils';
 
@@ -127,6 +129,38 @@ const initializeListingTestData = async (): Promise<void> => {
   await DataStore.save(new Listing({ title: 'Chalet away from home', priceUSD: 5000, description: 'youll like it' }));
 };
 
+const initializeCompositeDogTestData = async (): Promise<void> => {
+  const connectedBowl = await DataStore.save(new CompositeBowl({ shape: 'round', size: 'xl' }));
+  const connectedOwner = await DataStore.save(new CompositeOwner({ lastName: 'Erica', firstName: 'Raunak' }));
+
+  const connectedToys = await Promise.all([
+    DataStore.save(new CompositeToy({ kind: 'stick', color: 'oak' })),
+    DataStore.save(new CompositeToy({ kind: 'ball', color: 'green' })),
+  ]);
+
+  const createdRecord = await DataStore.save(
+    new CompositeDog({
+      name: 'Ruca',
+      description: 'fetch maniac',
+      CompositeBowl: connectedBowl,
+      CompositeOwner: connectedOwner,
+    }),
+  );
+
+  await Promise.all(
+    connectedToys.map((toy) => {
+      return DataStore.save(
+        CompositeToy.copyOf(toy, (updated) => {
+          Object.assign(updated, {
+            compositeDogCompositeToysName: createdRecord.name,
+            compositeDogCompositeToysDescription: createdRecord.description,
+          });
+        }),
+      );
+    }),
+  );
+};
+
 export default function ComponentTests() {
   const [isInitialized, setInitialized] = useState(false);
   const initializeStarted = useRef(false);
@@ -138,7 +172,7 @@ export default function ComponentTests() {
       }
       // DataStore.clear() doesn't appear to reliably work in this scenario.
       indexedDB.deleteDatabase('amplify-datastore');
-      await Promise.all([initializeUserTestData(), initializeListingTestData()]);
+      await Promise.all([initializeUserTestData(), initializeListingTestData(), initializeCompositeDogTestData()]);
       initializeAuthMockData({
         picture: 'http://media.corporate-ir.net/media_files/IROL/17/176060/Oct18/AWS.png',
         username: 'TestUser',
@@ -178,42 +212,46 @@ export default function ComponentTests() {
         <h2>Concatenation and Conditional Tests</h2>
         <ComponentWithConcatenation />
         <ComponentWithConcatenation
-          buttonUser={{
-            id: '1',
-            firstName: 'Norm',
-            lastName: 'Gunderson',
-            age: -1,
-          }}
+          buttonUser={
+            new User({
+              firstName: 'Norm',
+              lastName: 'Gunderson',
+              age: -1,
+            })
+          }
         />
         <ComponentWithConditional
           id="conditional1"
-          buttonUser={{
-            id: '1',
-            firstName: 'Disabled',
-            lastName: 'Conditional Button',
-            isLoggedIn: false,
-            loggedInColor: 'blue',
-            loggedOutColor: 'red',
-            age: -1,
-          }}
+          buttonUser={
+            new User({
+              firstName: 'Disabled',
+              lastName: 'Conditional Button',
+              isLoggedIn: false,
+              loggedInColor: 'blue',
+              loggedOutColor: 'red',
+              age: -1,
+            })
+          }
         />
         <ComponentWithConditional
           id="conditional2"
-          buttonUser={{
-            id: '1',
-            isLoggedIn: true,
-            loggedInColor: 'blue',
-            loggedOutColor: 'red',
-          }}
+          buttonUser={
+            new User({
+              isLoggedIn: true,
+              loggedInColor: 'blue',
+              loggedOutColor: 'red',
+            })
+          }
         />
         <ComponentWithConditional
           id="conditional3"
-          buttonUser={{
-            id: '1',
-            isLoggedIn: true,
-            loggedInColor: 'blue',
-            loggedOutColor: 'red',
-          }}
+          buttonUser={
+            new User({
+              isLoggedIn: true,
+              loggedInColor: 'blue',
+              loggedOutColor: 'red',
+            })
+          }
         />
         <ComponentWithBoundPropertyConditional id="ComponentWithBoundPropertyConditional-no-prop" />
         <ComponentWithBoundPropertyConditional id="ComponentWithBoundPropertyConditional-true-prop" buttonColor="red" />
@@ -255,31 +293,35 @@ export default function ComponentTests() {
         <ComponentWithDataBindingWithoutPredicate id="dataStoreBindingWithoutPredicateNoOverride" />
         <ComponentWithDataBindingWithoutPredicate
           id="dataStoreBindingWithoutPredicateWithOverride"
-          buttonUser={{
-            id: '1',
-            firstName: 'Override Name',
-            age: -1,
-          }}
+          buttonUser={
+            new User({
+              firstName: 'Override Name',
+              age: -1,
+            })
+          }
         />
         <ComponentWithDataBindingWithPredicate id="dataStoreBindingWithPredicateNoOverrideNoModel" />
         <ComponentWithDataBindingWithPredicate
           id="dataStoreBindingWithPredicateWithOverride"
-          buttonUser={{
-            id: '1',
-            firstName: 'Override Name',
-          }}
+          buttonUser={
+            new User({
+              firstName: 'Override Name',
+            })
+          }
         />
         <ComponentWithAuthBinding id="authBinding" />
         <ComponentWithMultipleDataBindingsWithPredicate
           id="multipleDataBindings"
-          user={{
-            id: '1',
-            firstName: 'QA',
-          }}
-          listing={{
-            id: '1',
-            priceUSD: 2200,
-          }}
+          user={
+            new User({
+              firstName: 'QA',
+            })
+          }
+          listing={
+            new Listing({
+              priceUSD: 2200,
+            })
+          }
         />
         <ComponentWithSlotBinding id="slotBinding" mySlot={<div>Customer component</div>} />
       </div>
@@ -365,6 +407,21 @@ export default function ComponentTests() {
             };
           }}
         />
+        <CollectionWithCompositeKeysAndRelationships
+          id="collectionWithCompositeKeysAndRelationships"
+          overrideItems={({ item }) => {
+            return {
+              mySlot: (
+                <div>
+                  <span>{`Owner: ${item.CompositeOwner?.lastName}`}</span>
+                  <span>{`Bowl: ${item.CompositeBowl?.shape}`}</span>
+                  <span>{`Toys: ${item.CompositeToys?.map((toy: CompositeToy) => toy.kind).join(', ')}`}</span>
+                </div>
+              ),
+            };
+          }}
+        />
+        <CollectionWithBetweenPredicate id="collectionWithBetweenPredicate" />
       </div>
       <div id="default-value">
         <h2>Default Value</h2>

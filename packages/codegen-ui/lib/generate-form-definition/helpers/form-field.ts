@@ -16,21 +16,45 @@
 import {
   FormDefinition,
   FormDefinitionInputElement,
-  StudioGenericFieldConfig,
   ModelFieldsConfigs,
   StudioFormFieldConfig,
   StudioFormValueMappings,
   FieldValidationConfiguration,
   ValidationTypes,
+  DataFieldDataType,
+  StorageAccessLevel,
 } from '../../types';
 import { InternalError, InvalidInputError } from '../../errors';
 import { FORM_DEFINITION_DEFAULTS } from './defaults';
 import { deleteUndefined, getFirstDefinedValue, getFirstNumber, getFirstString } from './mapper-utils';
+import { ExtendedStudioGenericFieldConfig } from '../../types/form/form-definition';
+import { isNonModelDataType } from '../../check-support';
 
 export function mergeValueMappings(
   base?: StudioFormValueMappings,
   override?: StudioFormValueMappings,
 ): StudioFormValueMappings {
+  // if model-based
+  if (base?.bindingProperties || override?.bindingProperties) {
+    // if overrides present, autogen'd mappings will be passed as base
+    // else, as override
+    const autoGendValueMappings = base || override;
+    if (autoGendValueMappings) {
+      const { values } = autoGendValueMappings;
+      // only use displayValue from overrides
+      // rest should be autogend
+      if (base && override?.values[0]?.displayValue) {
+        values[0].displayValue = override.values[0].displayValue;
+      }
+
+      return {
+        values,
+        bindingProperties: autoGendValueMappings.bindingProperties,
+      };
+    }
+  }
+
+  // if not model-based
   let values: StudioFormValueMappings['values'] = [];
 
   if (!base && override) {
@@ -53,13 +77,12 @@ export function mergeValueMappings(
 
   return {
     values,
-    bindingProperties: { ...base?.bindingProperties, ...override?.bindingProperties },
   };
 }
 
 function getRadioGroupFieldValueMappings(
-  config: StudioGenericFieldConfig,
-  baseConfig?: StudioGenericFieldConfig,
+  config: ExtendedStudioGenericFieldConfig,
+  baseConfig?: ExtendedStudioGenericFieldConfig,
 ): StudioFormValueMappings {
   const valueMappings: StudioFormValueMappings =
     baseConfig?.inputType?.valueMappings?.values.length || config?.inputType?.valueMappings?.values.length
@@ -91,16 +114,29 @@ function getRadioGroupFieldValueMappings(
   return valueMappings;
 }
 
+function getRequiredValidationMessage(dataType?: DataFieldDataType): string | undefined {
+  if (typeof dataType === 'object' && 'model' in dataType) {
+    return `${dataType.model} is required.`;
+  }
+
+  return undefined;
+}
+
 // pure function that merges in validations in param with defaults
 function getMergedValidations(
   componentType: string,
   validations: (FieldValidationConfiguration[] | undefined)[],
   isRequired?: boolean,
+  dataType?: DataFieldDataType,
 ): (FieldValidationConfiguration & { immutable?: true })[] | undefined {
   const mergedValidations: (FieldValidationConfiguration & { immutable?: true })[] = [];
-
   if (isRequired) {
-    mergedValidations.push({ type: ValidationTypes.REQUIRED, immutable: true });
+    const requiredValidation: typeof mergedValidations[0] = { type: ValidationTypes.REQUIRED, immutable: true };
+    const requiredValidationMessage = getRequiredValidationMessage(dataType);
+    if (requiredValidationMessage) {
+      requiredValidation.validationMessage = requiredValidationMessage;
+    }
+    mergedValidations.push(requiredValidation);
   }
 
   const ComponentTypeToDefaultValidations: {
@@ -115,7 +151,9 @@ function getMergedValidations(
 
   const defaultValidation = ComponentTypeToDefaultValidations[componentType];
 
-  if (defaultValidation) {
+  if (isNonModelDataType(dataType)) {
+    mergedValidations.push({ type: ValidationTypes.JSON, immutable: true });
+  } else if (defaultValidation) {
     mergedValidations.push(...defaultValidation);
   }
 
@@ -144,17 +182,21 @@ function getTextFieldType(componentType: string): string | undefined {
  */
 
 export function getFormDefinitionInputElement(
-  config: StudioGenericFieldConfig,
-  baseConfig?: StudioGenericFieldConfig,
+  config: ExtendedStudioGenericFieldConfig,
+  baseConfig?: ExtendedStudioGenericFieldConfig,
 ): FormDefinitionInputElement {
-  const componentType = config.inputType?.type || baseConfig?.inputType?.type;
+  let componentType = config.inputType?.type || baseConfig?.inputType?.type;
 
   if (!componentType) {
-    throw new InvalidInputError('Field config is missing input type');
+    // Gracefully fall back to a TextField if the inputType is no longer available due to a field rename
+    componentType = 'TextField';
   }
+
   const defaultStringValue = getFirstString([config.inputType?.defaultValue, baseConfig?.inputType?.defaultValue]);
   const isRequiredValue = getFirstDefinedValue([config.inputType?.required, baseConfig?.inputType?.required]);
+
   let formDefinitionElement: FormDefinitionInputElement;
+
   switch (componentType) {
     case 'TextField':
     case 'NumberField':
@@ -173,7 +215,6 @@ export function getFormDefinitionInputElement(
           isRequired: isRequiredValue,
           isReadOnly: getFirstDefinedValue([config.inputType?.readOnly, baseConfig?.inputType?.readOnly]),
           placeholder: config.inputType?.placeholder || baseConfig?.inputType?.placeholder,
-          defaultValue: defaultStringValue,
           type: getTextFieldType(componentType),
         },
         studioFormComponentType: componentType,
@@ -314,6 +355,64 @@ export function getFormDefinitionInputElement(
         },
       };
       break;
+
+    case 'Autocomplete':
+      formDefinitionElement = {
+        componentType: 'Autocomplete',
+        props: {
+          label: config.label || baseConfig?.label || FORM_DEFINITION_DEFAULTS.field.inputType.label,
+          descriptiveText: config.inputType?.descriptiveText ?? baseConfig?.inputType?.descriptiveText,
+          isRequired: isRequiredValue,
+          isReadOnly: getFirstDefinedValue([config.inputType?.readOnly, baseConfig?.inputType?.readOnly]),
+          placeholder: config.inputType?.placeholder || baseConfig?.inputType?.placeholder,
+          defaultValue: defaultStringValue,
+        },
+        valueMappings: mergeValueMappings(baseConfig?.inputType?.valueMappings, config.inputType?.valueMappings),
+      };
+      break;
+
+    case 'StorageField':
+      formDefinitionElement = {
+        componentType: 'StorageField',
+        props: {
+          label: config.label || baseConfig?.label || FORM_DEFINITION_DEFAULTS.field.inputType.label,
+          descriptiveText: config.inputType?.descriptiveText ?? baseConfig?.inputType?.descriptiveText,
+          isRequired: isRequiredValue,
+          isReadOnly: getFirstDefinedValue([config.inputType?.readOnly, baseConfig?.inputType?.readOnly]),
+          defaultValue: defaultStringValue,
+
+          accessLevel: getFirstDefinedValue([
+            config.inputType?.fileUploaderConfig?.accessLevel,
+            baseConfig?.inputType?.fileUploaderConfig?.accessLevel,
+            FORM_DEFINITION_DEFAULTS.field.inputType.fileUploaderConfig.accessLevel,
+          ]) as StorageAccessLevel,
+          acceptedFileTypes: getFirstDefinedValue([
+            config.inputType?.fileUploaderConfig?.acceptedFileTypes,
+            baseConfig?.inputType?.fileUploaderConfig?.acceptedFileTypes,
+            FORM_DEFINITION_DEFAULTS.field.inputType.fileUploaderConfig.acceptedFileTypes,
+          ]) as string[],
+          isResumable: getFirstDefinedValue([
+            config.inputType?.fileUploaderConfig?.isResumable,
+            baseConfig?.inputType?.fileUploaderConfig?.isResumable,
+            FORM_DEFINITION_DEFAULTS.field.inputType.fileUploaderConfig.isResumable,
+          ]),
+          showThumbnails: getFirstDefinedValue([
+            config.inputType?.fileUploaderConfig?.showThumbnails,
+            baseConfig?.inputType?.fileUploaderConfig?.showThumbnails,
+            FORM_DEFINITION_DEFAULTS.field.inputType.fileUploaderConfig.showThumbnails,
+          ]),
+          maxFileCount: getFirstDefinedValue([
+            config.inputType?.fileUploaderConfig?.maxFileCount,
+            baseConfig?.inputType?.fileUploaderConfig?.maxFileCount,
+          ]),
+          maxSize: getFirstDefinedValue([
+            config.inputType?.fileUploaderConfig?.maxSize,
+            baseConfig?.inputType?.fileUploaderConfig?.maxSize,
+          ]),
+        },
+      };
+      break;
+
     default:
       throw new InvalidInputError(`componentType ${componentType} could not be mapped`);
   }
@@ -322,11 +421,13 @@ export function getFormDefinitionInputElement(
     componentType,
     [baseConfig?.validations, config?.validations],
     isRequiredValue,
+    config?.dataType ?? baseConfig?.dataType,
   );
 
   formDefinitionElement.validations = mergedValidations;
   formDefinitionElement.dataType = config?.dataType || baseConfig?.dataType;
   formDefinitionElement.isArray = baseConfig ? baseConfig.inputType?.isArray : config.inputType?.isArray;
+  formDefinitionElement.relationship = config.relationship ?? baseConfig?.relationship;
 
   deleteUndefined(formDefinitionElement);
   deleteUndefined(formDefinitionElement.props);

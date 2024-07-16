@@ -13,10 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
  */
-import { StudioForm } from '@aws-amplify/codegen-ui';
+import { StudioForm, ValidationTypeMapping } from '@aws-amplify/codegen-ui';
 import { EmitHint, Node } from 'typescript';
 import { buildFormPropNode } from '../../forms';
 import { buildPrinter, defaultRenderConfig } from '../../react-studio-template-renderer-helper';
+import { createValidationExpression } from '../../forms/form-renderer-helper/validation';
 
 describe('form-render utils', () => {
   let printNode: (node: Node) => string;
@@ -40,7 +41,7 @@ describe('form-render utils', () => {
       cta: {},
     };
 
-    const propSignatures = buildFormPropNode(form);
+    const propSignatures = buildFormPropNode(form, {});
     const node = printNode(propSignatures);
     expect(node).toMatchSnapshot();
   });
@@ -56,8 +57,81 @@ describe('form-render utils', () => {
       style: {},
       cta: {},
     };
-    const propSignatures = buildFormPropNode(form);
+    const propSignatures = buildFormPropNode(form, {});
     const node = printNode(propSignatures);
+    expect(node).toMatchSnapshot();
+  });
+
+  it('should render cancel props if included cancel object is an empty object', () => {
+    const form: StudioForm = {
+      id: '123',
+      name: 'myCustomForm',
+      formActionType: 'create',
+      dataType: { dataSourceType: 'Custom', dataTypeName: 'Custom' },
+      fields: {},
+      sectionalElements: {},
+      style: {},
+      cta: {
+        cancel: {},
+      },
+    };
+    const propSignatures = buildFormPropNode(form, {});
+    const node = printNode(propSignatures);
+    expect(node).toContain('onCancel?: () => void;');
+    expect(node).toMatchSnapshot();
+  });
+
+  it('should render composite primary keys', () => {
+    const form: StudioForm = {
+      id: '123',
+      name: 'mySampleForm',
+      formActionType: 'update',
+      dataType: { dataSourceType: 'DataStore', dataTypeName: 'Post' },
+      fields: {},
+      sectionalElements: {},
+      style: {},
+      cta: {
+        cancel: {},
+      },
+    };
+    const propSignatures = buildFormPropNode(
+      form,
+      { description: { dataType: 'Int', validationRules: [], componentType: 'TextField' } },
+      undefined,
+      ['myKey', 'description'],
+    );
+    const node = printNode(propSignatures);
+    expect(node).toContain('id?: {');
+    expect(node).toContain('myKey: string;');
+    expect(node).toContain('description: number;');
+    expect(node).toMatchSnapshot();
+  });
+
+  test.each(
+    ValidationTypeMapping.StringType.map<[string, any[]]>((type) => [
+      `${type} with undefined numValues`,
+      [
+        {
+          strValues: ['chard'],
+          numValues: undefined,
+          type,
+        } as any,
+      ],
+    ]).concat(
+      ValidationTypeMapping.NumberType.map<[string, any[]]>((type) => [
+        `${type} with undefined strValues`,
+        [
+          {
+            strValues: undefined,
+            numValues: [9],
+            type,
+          } as any,
+        ],
+      ]),
+    ),
+  )('createValidationExpression handles %s', (description, rules) => {
+    const expression = createValidationExpression(rules);
+    const node = printNode(expression);
     expect(node).toMatchSnapshot();
   });
 });

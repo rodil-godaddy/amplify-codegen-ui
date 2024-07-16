@@ -18,13 +18,16 @@ import { mapFormFieldConfig, getFormDefinitionInputElement } from '../../../gene
 import { mergeValueMappings } from '../../../generate-form-definition/helpers/form-field';
 import {
   FormDefinition,
+  GenericDataRelationshipType,
   GenericValidationType,
   ModelFieldsConfigs,
   StringLengthValidationType,
   StudioFormFieldConfig,
+  StudioFormValueMappings,
   StudioGenericFieldConfig,
   ValidationTypes,
 } from '../../../types';
+import { ExtendedStudioGenericFieldConfig } from '../../../types/form/form-definition';
 import { getBasicFormDefinition } from '../../__utils__/basic-form-definition';
 
 describe('mapFormFieldConfig', () => {
@@ -104,7 +107,7 @@ describe('getFormDefinitionInputElement', () => {
         isRequired: true,
         isReadOnly: false,
         placeholder: 'MyPlaceholder',
-        defaultValue: 'MyDefaultValue',
+        value: 'MyDefaultValue',
       },
     };
 
@@ -114,7 +117,25 @@ describe('getFormDefinitionInputElement', () => {
         label: 'MyLabel',
         descriptiveText: 'MyDescriptiveText',
         placeholder: 'MyPlaceholder',
-        defaultValue: 'MyDefaultValue',
+      },
+      studioFormComponentType: 'TextField',
+    });
+  });
+
+  it(`should gracefully fall back to TextField if the field type isn't available`, () => {
+    const config = {
+      label: 'MyLabel',
+      inputType: {
+        isReadOnly: false,
+        placeholder: 'MyPlaceholder',
+      },
+    };
+
+    expect(getFormDefinitionInputElement(config)).toStrictEqual({
+      componentType: 'TextField',
+      props: {
+        label: 'MyLabel',
+        placeholder: 'MyPlaceholder',
       },
       studioFormComponentType: 'TextField',
     });
@@ -306,7 +327,6 @@ describe('getFormDefinitionInputElement', () => {
       props: { label: 'Label', isDisabled: true, placeholder: 'Please select an option' },
       valueMappings: {
         values: [{ value: { value: 'value1' }, displayvalue: { value: 'displayValue1' } }],
-        bindingProperties: {},
       },
       defaultValue: 'value1',
     });
@@ -492,8 +512,47 @@ describe('getFormDefinitionInputElement', () => {
       props: { label: 'Label', name: 'MyFieldName' },
       valueMappings: {
         values: [{ value: { value: 'value1' }, displayvalue: { value: 'displayValue1' } }],
-        bindingProperties: {},
       },
+    });
+  });
+
+  it('should get Autocomplete', () => {
+    const valueMappings: StudioFormValueMappings = {
+      values: [{ value: { bindingProperties: { property: 'Owner', field: 'id' } } }],
+      bindingProperties: { Owner: { type: 'Data', bindingProperties: { model: 'Owner' } } },
+    };
+
+    const dataType = { model: 'Owner' };
+
+    const relationship: GenericDataRelationshipType = { relatedModelName: 'Owner', type: 'HAS_ONE' };
+
+    const config: ExtendedStudioGenericFieldConfig = {
+      dataType,
+      inputType: {
+        name: 'Owner',
+        readOnly: false,
+        required: true,
+        type: 'Autocomplete',
+        value: 'Owner',
+        isArray: false,
+        valueMappings,
+      },
+      label: 'Owner',
+      relationship,
+    };
+
+    expect(getFormDefinitionInputElement(config)).toStrictEqual({
+      componentType: 'Autocomplete',
+      props: {
+        label: 'Owner',
+        isReadOnly: false,
+        isRequired: true,
+      },
+      valueMappings,
+      dataType,
+      relationship,
+      isArray: false,
+      validations: [{ type: ValidationTypes.REQUIRED, immutable: true, validationMessage: 'Owner is required.' }],
     });
   });
 
@@ -516,7 +575,7 @@ describe('getFormDefinitionInputElement', () => {
   });
 
   it('should handle valueMappings for RadioGroupField of Boolean type', () => {
-    const config: StudioFormFieldConfig = {
+    const config: ExtendedStudioGenericFieldConfig = {
       dataType: 'Boolean',
       inputType: {
         type: 'RadioGroupField',
@@ -549,12 +608,6 @@ describe('getFormDefinitionInputElement', () => {
         type: 'NotValid',
       },
     };
-
-    expect(() => getFormDefinitionInputElement(config)).toThrow();
-  });
-
-  it('should throw if the inputType is missing type', () => {
-    const config = { label: 'MyLabel' };
 
     expect(() => getFormDefinitionInputElement(config)).toThrow();
   });
@@ -599,21 +652,22 @@ describe('mergeValueMappings', () => {
     expect(mergedMappings.values.find((v) => 'value' in v.value && v.value.value === 'AUSTIN')).toBeUndefined();
   });
 
-  it('should merge base and override bindingProperties', () => {
+  it('should transfer bindingProperties', () => {
     expect(
       mergeValueMappings(
         {
           values: [{ value: { value: 'sdjoiflj' }, displayValue: { bindingProperties: { property: 'Dog' } } }],
           bindingProperties: {
             Dog: { type: 'Data', bindingProperties: { model: 'Dog' } },
-            Person: { type: 'Data', bindingProperties: { model: 'Person' } },
           },
         },
-        { values: [], bindingProperties: { Dog: { type: 'Data', bindingProperties: { model: 'MyDog' } } } },
+        {
+          values: [{ value: { value: 'sdjoiflj' } }],
+          bindingProperties: { Dog: { type: 'Data', bindingProperties: { model: 'Dog' } } },
+        },
       ).bindingProperties,
     ).toStrictEqual({
-      Person: { type: 'Data', bindingProperties: { model: 'Person' } },
-      Dog: { type: 'Data', bindingProperties: { model: 'MyDog' } },
+      Dog: { type: 'Data', bindingProperties: { model: 'Dog' } },
     });
   });
 });

@@ -12,15 +12,15 @@ call npm run integ:templates
 
 :: install
 call lerna bootstrap
-call lerna add --scope integration-test aws-amplify
-call lerna add --scope integration-test @aws-amplify/ui-react
-call lerna add --scope integration-test @aws-amplify/datastore
+call lerna add --scope integration-test aws-amplify@^5.0.0
+call lerna add --scope integration-test @aws-amplify/ui-react@^5.0.0
+call lerna add --scope integration-test @aws-amplify/datastore@^4.0.0
 call lerna add --scope integration-test @aws-amplify/codegen-ui
 call lerna add --scope integration-test @aws-amplify/codegen-ui-react
 call lerna add --scope integration-test @aws-amplify/codegen-ui-test-generator
 call lerna add --no-ci --scope integration-test react-router-dom
 call lerna add --no-ci --scope integration-test @types/react-router-dom
-call lerna add --no-ci --dev --scope integration-test cypress@11.2.0
+call lerna add --no-ci --dev --scope integration-test cypress@13.0.0
 call lerna add --no-ci --dev --scope integration-test wait-on
 call lerna add --no-ci --scope integration-test os-browserify
 call lerna add --no-ci --scope integration-test path-browserify

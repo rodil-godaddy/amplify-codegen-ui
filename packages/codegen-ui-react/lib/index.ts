@@ -13,6 +13,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
  */
+export * from './react-studio-template-renderer-helper';
 export * from './react-component-renderer';
 export * from './react-expander-renderer';
 export * from './react-table-renderer';
@@ -29,5 +30,4 @@ export * from './primitive';
 export * from './react-index-studio-template-renderer';
 export * from './react-utils-studio-template-renderer';
 export * from './react-required-dependency-provider';
-export * from './utils/forms/validation';
-export { fetchByPath } from './utils/json-path-fetch';
+export * from './utils-file-functions';

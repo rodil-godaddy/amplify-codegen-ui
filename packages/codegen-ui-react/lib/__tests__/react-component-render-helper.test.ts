@@ -35,6 +35,7 @@ import {
   buildConditionalExpression,
   hasChildrenProp,
   buildConcatExpression,
+  parseNumberOperand,
 } from '../react-component-render-helper';
 
 import { assertASTMatchesSnapshot } from './__utils__';
@@ -280,16 +281,39 @@ describe('react-component-render-helper', () => {
 
   describe('buildContionalExpression', () => {
     test('operandType exists', () => {
-      const exp = buildConditionalExpression(
+      const numberExpression = buildConditionalExpression(
         buildEmptyComponentMetadata(),
         buildConditionalWithOperand('18', 'number'),
       );
-      assertASTMatchesSnapshot(exp);
+      assertASTMatchesSnapshot(numberExpression);
+      const booleanExpression = buildConditionalExpression(
+        buildEmptyComponentMetadata(),
+        buildConditionalWithOperand('true', 'boolean'),
+      );
+      assertASTMatchesSnapshot(booleanExpression);
+      const stringExpression = buildConditionalExpression(
+        buildEmptyComponentMetadata(),
+        buildConditionalWithOperand('true', 'string'),
+      );
+      assertASTMatchesSnapshot(stringExpression);
     });
 
     test('operandType does not exist', () => {
-      const exp = buildConditionalExpression(buildEmptyComponentMetadata(), buildConditionalWithOperand('18'));
-      assertASTMatchesSnapshot(exp);
+      const numberExpression = buildConditionalExpression(
+        buildEmptyComponentMetadata(),
+        buildConditionalWithOperand('18'),
+      );
+      assertASTMatchesSnapshot(numberExpression);
+      const booleanExpression = buildConditionalExpression(
+        buildEmptyComponentMetadata(),
+        buildConditionalWithOperand('true'),
+      );
+      assertASTMatchesSnapshot(booleanExpression);
+      const stringExpression = buildConditionalExpression(
+        buildEmptyComponentMetadata(),
+        buildConditionalWithOperand('dlo'),
+      );
+      assertASTMatchesSnapshot(stringExpression);
     });
 
     test('operand and operandType mismatch', () => {
@@ -320,6 +344,17 @@ describe('react-component-render-helper', () => {
 
       const exp = buildConcatExpression(concatProp);
       assertASTMatchesSnapshot(exp);
+    });
+  });
+
+  describe('parseNumberOperand', () => {
+    test('should parse int if field data type is Int', () => {
+      expect(parseNumberOperand('10', { dataType: 'Int', readOnly: false, required: false, isArray: false })).toBe(10);
+    });
+    test('should parse int if field data type is Int', () => {
+      expect(parseNumberOperand('10.01', { dataType: 'Float', readOnly: false, required: false, isArray: false })).toBe(
+        10.01,
+      );
     });
   });
 });

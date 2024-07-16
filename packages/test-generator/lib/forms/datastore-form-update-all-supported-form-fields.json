@@ -1,0 +1,59 @@
+{
+  "id": "123-ds-update-allsupprted",
+  "name": "DataStoreFormUpdateAllSupportedFormFields",
+  "formActionType": "update",
+  "dataType": {
+    "dataSourceType": "DataStore",
+    "dataTypeName": "AllSupportedFormFields"
+  },
+  "fields": {
+    "HasOneUser": {
+      "inputType": {
+        "type": "Autocomplete",
+        "valueMappings": {
+          "values": [
+            {
+              "value": {
+                "bindingProperties": {
+                  "property": "User",
+                  "field": "id"
+                }
+              },
+              "displayValue": {
+                "concat": [
+                  {
+                    "bindingProperties": {
+                      "property": "User",
+                      "field": "firstName"
+                    }
+                  },
+                  {
+                    "value": " "
+                  },
+                  {
+                    "bindingProperties": {
+                      "property": "User",
+                      "field": "lastName"
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "bindingProperties": {
+            "User": {
+              "type": "Data",
+              "bindingProperties": {
+                "model": "User"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "sectionalElements": {},
+  "style": {},
+  "cta": {},
+  "schemaVersion": "1.0"
+}

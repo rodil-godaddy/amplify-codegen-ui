@@ -20,8 +20,10 @@ import {
   getGenericFromDataStore,
   StudioForm,
   StudioView,
+  FormFeatureFlags,
 } from '@aws-amplify/codegen-ui';
-import { Schema } from '@aws-amplify/datastore';
+import { Schema as DataStoreSchema } from '@aws-amplify/datastore';
+import { ModelIntrospectionSchema } from '@aws-amplify/appsync-modelgen-plugin';
 import { createPrinter, createSourceFile, EmitHint, NewLineKind, Node } from 'typescript';
 import { AmplifyFormRenderer } from '../../amplify-ui-renderers/amplify-form-renderer';
 import { AmplifyRenderer } from '../../amplify-ui-renderers/amplify-renderer';
@@ -56,14 +58,15 @@ export const generateWithAmplifyFormRenderer = (
   formJsonFile: string,
   dataSchemaJsonFile: string | undefined,
   renderConfig: ReactRenderConfig = defaultCLIRenderConfig,
+  featureFlags?: FormFeatureFlags,
 ): { componentText: string; declaration?: string } => {
   let dataSchema: GenericDataSchema | undefined;
   if (dataSchemaJsonFile) {
-    const dataStoreSchema = loadSchemaFromJSONFile<Schema>(dataSchemaJsonFile);
+    const dataStoreSchema = loadSchemaFromJSONFile<DataStoreSchema | ModelIntrospectionSchema>(dataSchemaJsonFile);
     dataSchema = getGenericFromDataStore(dataStoreSchema);
   }
   const rendererFactory = new StudioTemplateRendererFactory(
-    (component: StudioForm) => new AmplifyFormRenderer(component, dataSchema, renderConfig),
+    (component: StudioForm) => new AmplifyFormRenderer(component, dataSchema, renderConfig, featureFlags),
   );
 
   const renderer = rendererFactory.buildRenderer(loadSchemaFromJSONFile<StudioForm>(formJsonFile));
@@ -74,14 +77,15 @@ export const generateComponentOnlyWithAmplifyFormRenderer = (
   formJsonFile: string,
   dataSchemaJsonFile: string | undefined,
   renderConfig: ReactRenderConfig = defaultCLIRenderConfig,
+  featureFlags?: FormFeatureFlags,
 ) => {
   let dataSchema: GenericDataSchema | undefined;
   if (dataSchemaJsonFile) {
-    const dataStoreSchema = loadSchemaFromJSONFile<Schema>(dataSchemaJsonFile);
+    const dataStoreSchema = loadSchemaFromJSONFile<DataStoreSchema | ModelIntrospectionSchema>(dataSchemaJsonFile);
     dataSchema = getGenericFromDataStore(dataStoreSchema);
   }
   const rendererFactory = new StudioTemplateRendererFactory(
-    (component: StudioForm) => new AmplifyFormRenderer(component, dataSchema, renderConfig),
+    (component: StudioForm) => new AmplifyFormRenderer(component, dataSchema, renderConfig, featureFlags),
   );
 
   const renderer = rendererFactory.buildRenderer(loadSchemaFromJSONFile<StudioForm>(formJsonFile));
@@ -95,7 +99,7 @@ export const renderWithAmplifyViewRenderer = (
 ): { componentText: string; declaration?: string } => {
   let dataSchema: GenericDataSchema | undefined;
   if (dataSchemaJsonFile) {
-    const dataStoreSchema = loadSchemaFromJSONFile<Schema>(dataSchemaJsonFile);
+    const dataStoreSchema = loadSchemaFromJSONFile<DataStoreSchema | ModelIntrospectionSchema>(dataSchemaJsonFile);
     dataSchema = getGenericFromDataStore(dataStoreSchema);
   }
   const rendererFactory = new StudioTemplateRendererFactory(
@@ -152,4 +156,21 @@ export const renderExpanderJsxElement = (
   const expanderNode = printer.printNode(EmitHint.Unspecified, expanderJsx, file);
 
   return transpile(expanderNode, {}).componentText;
+};
+
+export const rendererConfigWithGraphQL: ReactRenderConfig = {
+  apiConfiguration: {
+    dataApi: 'GraphQL',
+    typesFilePath: '../API',
+    queriesFilePath: '../graphql/queries',
+    mutationsFilePath: '../graphql/mutations',
+    subscriptionsFilePath: '../graphql/subscriptions',
+    fragmentsFilePath: '../graphql/fragments',
+  },
+};
+
+export const rendererConfigWithNoApi: ReactRenderConfig = {
+  apiConfiguration: {
+    dataApi: 'NoApi',
+  },
 };

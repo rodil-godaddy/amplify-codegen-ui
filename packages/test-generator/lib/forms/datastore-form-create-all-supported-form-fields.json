@@ -1,14 +1,62 @@
 {
-    "id": "123-ds-create-class",
-    "name": "DataStoreFormCreateAllSupportedFormFields",
-    "formActionType": "create",
-    "dataType": {
-      "dataSourceType": "DataStore",
-      "dataTypeName": "AllSupportedFormFields"
+  "id": "123-ds-create-class",
+  "name": "DataStoreFormCreateAllSupportedFormFields",
+  "formActionType": "create",
+  "dataType": {
+    "dataSourceType": "DataStore",
+    "dataTypeName": "AllSupportedFormFields"
+  },
+  "fields": {
+    "stringArray": {
+      "label": "String array"
     },
-    "fields": {},
-    "sectionalElements": { },
-    "style": {},
-    "cta": {},
-    "schemaVersion": "1.0"
-  }
+    "HasOneUser": {
+      "inputType": {
+        "type": "Autocomplete",
+        "valueMappings": {
+          "values": [
+            {
+              "value": {
+                "bindingProperties": {
+                  "property": "User",
+                  "field": "id"
+                }
+              },
+              "displayValue": {
+                "concat": [
+                  {
+                    "bindingProperties": {
+                      "property": "User",
+                      "field": "firstName"
+                    }
+                  },
+                  {
+                    "value": " "
+                  },
+                  {
+                    "bindingProperties": {
+                      "property": "User",
+                      "field": "lastName"
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "bindingProperties": {
+            "User": {
+              "type": "Data",
+              "bindingProperties": {
+                "model": "User"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "sectionalElements": {},
+  "style": {},
+  "cta": {},
+  "schemaVersion": "1.0"
+}

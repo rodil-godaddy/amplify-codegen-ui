@@ -14,25 +14,20 @@
   limitations under the License.
  */
 
-import { StudioFormStyle } from './style';
+import { LabelDecorator, StudioFormStyle } from './style';
 import { StudioFormFields, StudioFormFieldConfig, StudioGenericFieldConfig } from './fields';
-import { SectionalElement } from './sectional-element';
+import { GenericSectionalElementConfig, SectionalElementConfig, SectionalElementFields } from './sectional-element';
 import { FormDefinition, ModelFieldsConfigs, FieldTypeMapKeys, ButtonConfig } from './form-definition';
-import { StudioFieldInputConfig, StudioFormValueMappings } from './input-config';
+import { StudioFieldInputConfig, StudioFormValueMappings, StudioFormInputFieldProperty } from './input-config';
 import { StudioFieldPosition } from './position';
 import { StudioFormCTA } from './form-cta';
-import { FormMetadata, FieldConfigMetadata, StudioFormActionType } from './form-metadata';
-
-export type StudioDataSourceType = 'DataStore' | 'Custom';
-
-/**
- * Data type definition for StudioForm
- */
-export type StudioFormDataType = {
-  dataSourceType: StudioDataSourceType;
-
-  dataTypeName: string;
-};
+import {
+  FormMetadata,
+  FieldConfigMetadata,
+  StudioFormActionType,
+  StudioFormDataType,
+  StudioDataSourceType,
+} from './form-metadata';
 
 /**
  * This is the base type for all StudioForms
@@ -48,11 +43,13 @@ export type StudioForm = {
 
   fields: StudioFormFields;
 
-  sectionalElements: { [elementName: string]: SectionalElement };
+  sectionalElements: SectionalElementFields;
 
   style: StudioFormStyle;
 
   cta: StudioFormCTA;
+
+  labelDecorator?: LabelDecorator;
 };
 
 export type FormInputType =
@@ -75,7 +72,8 @@ export type FormInputType =
   | 'URLField'
   | 'EmailField'
   | 'JSONField'
-  | 'ArrayField';
+  | 'Autocomplete'
+  | 'StorageField';
 
 export * from './form-definition-element';
 export * from './style';
@@ -83,13 +81,17 @@ export * from './form-validation';
 export * from './form-cta';
 
 export type {
-  SectionalElement,
+  GenericSectionalElementConfig,
+  SectionalElementConfig,
+  SectionalElementFields,
   StudioFormFieldConfig,
   StudioFormActionType,
+  StudioDataSourceType,
   FormDefinition,
   FormMetadata,
   FieldConfigMetadata,
   StudioFieldInputConfig,
+  StudioFormInputFieldProperty,
   StudioGenericFieldConfig,
   StudioFormFields,
   ModelFieldsConfigs,

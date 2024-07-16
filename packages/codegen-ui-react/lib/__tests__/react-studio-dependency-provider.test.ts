@@ -17,7 +17,11 @@ import semver from 'semver';
 import { ReactRequiredDependencyProvider } from '..';
 
 describe('ReactStudioDependencyProvider', () => {
-  const requiredDependencies = new ReactRequiredDependencyProvider().getRequiredDependencies();
+  const requiredDependencies = new ReactRequiredDependencyProvider().getRequiredDependencies(false);
+  const requiredDependenciesWithStorageManager = new ReactRequiredDependencyProvider().getRequiredDependencies(true);
+  const requiredDependenciesWithAmplifyJSV6 = new ReactRequiredDependencyProvider().getRequiredDependencies(true, {
+    dependencies: { 'aws-amplify': '^6.0.0' },
+  });
 
   describe('getRequiredDependencies', () => {
     it('has required dependencies', () => {
@@ -38,6 +42,36 @@ describe('ReactStudioDependencyProvider', () => {
       requiredDependencies.forEach((dep) => {
         expect(dep.reason.length).toBeGreaterThan(0);
       });
+    });
+
+    it('does not include ui-react-storage if user does not use StorageManager', () => {
+      expect(requiredDependencies.filter((dep) => dep.dependencyName !== '@aws-amplify/ui-react-storage')).toBeTruthy();
+    });
+
+    it('includes ui-react-storage if user is using StorageManager', () => {
+      expect(
+        requiredDependenciesWithStorageManager.filter((dep) => dep.dependencyName === '@aws-amplify/ui-react-storage'),
+      ).toBeTruthy();
+    });
+
+    it('includes amplify js v6 semver range', () => {
+      expect(requiredDependenciesWithAmplifyJSV6).toMatchObject([
+        {
+          dependencyName: '@aws-amplify/ui-react',
+          supportedSemVerPattern: '^6.0.0',
+          reason: 'Required to leverage Amplify UI primitives, and Amplify Studio component helper functions.',
+        },
+        {
+          dependencyName: 'aws-amplify',
+          supportedSemVerPattern: '^6.0.0',
+          reason: 'Required to leverage DataStore.',
+        },
+        {
+          dependencyName: '@aws-amplify/ui-react-storage',
+          supportedSemVerPattern: '^3.0.0',
+          reason: 'Required to leverage StorageManager.',
+        },
+      ]);
     });
   });
 });

@@ -38,7 +38,6 @@ import ts, {
   createProgram,
   BindingName,
   Expression,
-  PropertyAssignment,
   ArrowFunction,
   CallExpression,
   Identifier,
@@ -51,6 +50,7 @@ export const defaultRenderConfig = {
   script: ScriptKind.TSX,
   target: ScriptTarget.ES2015,
   module: ModuleKind.ESNext,
+  includeUseClientDirective: false,
 };
 
 const supportedTranspilationTargets = [
@@ -298,105 +298,6 @@ export const buildBaseCollectionVariableStatement = (identifier: string | Bindin
     ),
   );
 };
-/*
-  { [key]: relatedModel.filter(model => model.{relatedField} === item.id) }
- */
-export const buildPropAssignmentWithFilter = (key: string, relatedModel: string, relatedField: string) => {
-  return factory.createPropertyAssignment(
-    factory.createIdentifier(key),
-    factory.createCallExpression(
-      factory.createPropertyAccessExpression(
-        factory.createIdentifier(relatedModel),
-        factory.createIdentifier('filter'),
-      ),
-      undefined,
-      [
-        factory.createArrowFunction(
-          undefined,
-          undefined,
-          [
-            factory.createParameterDeclaration(
-              undefined,
-              undefined,
-              undefined,
-              factory.createIdentifier('model'),
-              undefined,
-              undefined,
-              undefined,
-            ),
-          ],
-          undefined,
-          factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-          factory.createBinaryExpression(
-            factory.createPropertyAccessExpression(
-              factory.createIdentifier('model'),
-              factory.createIdentifier(relatedField),
-            ),
-            factory.createToken(ts.SyntaxKind.EqualsEqualsEqualsToken),
-            // TODO: Change this once datastore supports custom primary keys
-            factory.createPropertyAccessExpression(factory.createIdentifier('item'), factory.createIdentifier('id')),
-          ),
-        ),
-      ],
-    ),
-  );
-};
-
-/*
-const {variableName} = {collectionCall}
-  .items.map((item) => ({ ...item, {propertyAssingments[]} }))
-*/
-export const buildCollectionWithItemMap = (
-  variableName: string,
-  collectionCall: Expression,
-  propAssignments: PropertyAssignment[],
-) => {
-  return factory.createVariableStatement(
-    undefined,
-    factory.createVariableDeclarationList(
-      [
-        factory.createVariableDeclaration(
-          factory.createIdentifier(variableName),
-          undefined,
-          undefined,
-          factory.createCallExpression(
-            factory.createPropertyAccessExpression(
-              factory.createPropertyAccessExpression(collectionCall, factory.createIdentifier('items')),
-              factory.createIdentifier('map'),
-            ),
-            undefined,
-            [
-              factory.createArrowFunction(
-                undefined,
-                undefined,
-                [
-                  factory.createParameterDeclaration(
-                    undefined,
-                    undefined,
-                    undefined,
-                    factory.createIdentifier('item'),
-                    undefined,
-                    undefined,
-                    undefined,
-                  ),
-                ],
-                undefined,
-                factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-                factory.createParenthesizedExpression(
-                  factory.createObjectLiteralExpression(
-                    [factory.createSpreadAssignment(factory.createIdentifier('item')), ...propAssignments],
-                    false,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-      ts.NodeFlags.Const,
-    ),
-  );
-};
 
 export const createHookStatement = (variableName: string, methodName: string, props: ObjectLiteralExpression) => {
   return factory.createVariableStatement(
@@ -408,6 +309,24 @@ export const createHookStatement = (variableName: string, methodName: string, pr
           undefined,
           undefined,
           factory.createCallExpression(factory.createIdentifier(methodName), undefined, [props]),
+        ),
+      ],
+      ts.NodeFlags.Const,
+    ),
+  );
+};
+
+// const client = generateClient();
+export const getAmplifyJSClientGenerator = () => {
+  return factory.createVariableStatement(
+    undefined,
+    factory.createVariableDeclarationList(
+      [
+        factory.createVariableDeclaration(
+          factory.createIdentifier('client'),
+          undefined,
+          undefined,
+          factory.createCallExpression(factory.createIdentifier('generateClient'), undefined, []),
         ),
       ],
       ts.NodeFlags.Const,
